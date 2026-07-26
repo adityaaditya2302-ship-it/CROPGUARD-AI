@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CropGuard AI Pro v3.0 - YOLOv8 Powered</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#1a5c3a;--secondary:#2d8f5e;--accent:#52b788;--danger:#c1121f;--warning:#f4a261;--info:#457b9d;--dark:#0d2818;--light:#d8f3dc;--bg:#f0f7f4;--card-bg:#ffffff;--text:#1a1a2e;--border:#b7e4c7}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:linear-gradient(135deg,var(--primary),var(--secondary));color:white;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,0.15)}
+.logo{display:flex;align-items:center;gap:10px;font-size:1.3rem;font-weight:700}
+.logo i{font-size:1.6rem;color:#90e0ef}
+.header-actions{display:flex;gap:10px;align-items:center}
+.header-btn{background:rgba(255,255,255,0.12);border:none;color:white;padding:8px 14px;border-radius:10px;cursor:pointer;font-size:0.85rem;transition:all 0.3s;display:flex;align-items:center;gap:6px}
+.header-btn:hover{background:rgba(255,255,255,0.25);transform:translateY(-1px)}
+.tab-bar{display:flex;overflow-x:auto;background:var(--card-bg);border-bottom:2px solid var(--border);padding:0 8px;gap:2px;scrollbar-width:none}
+.tab-bar::-webkit-scrollbar{display:none}
+.tab-btn{padding:12px 16px;border:none;background:none;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;transition:all 0.3s;display:flex;align-items:center;gap:6px}
+.tab-btn:hover{color:var(--primary);background:var(--light)}
+.tab-btn.active{color:var(--primary);border-bottom-color:var(--primary);background:var(--light)}
+.tab-content{display:none;padding:20px;max-width:1300px;margin:0 auto;animation:fadeIn 0.4s ease}
+.tab-content.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.card{background:var(--card-bg);border-radius:18px;padding:22px;margin-bottom:18px;box-shadow:0 2px 16px rgba(0,0,0,0.06);border:1px solid var(--border);transition:transform 0.3s}
+.card:hover{transform:translateY(-2px)}
+.card-title{font-size:1.15rem;font-weight:700;color:var(--primary);margin-bottom:15px;display:flex;align-items:center;gap:8px}
+.upload-zone{border:3px dashed var(--border);border-radius:18px;padding:45px 20px;text-align:center;cursor:pointer;transition:all 0.3s;background:linear-gradient(135deg,var(--light),#e8f5e9);position:relative;overflow:hidden}
+.upload-zone:hover{border-color:var(--primary);background:linear-gradient(135deg,#e8f5e9,#d8f3dc);transform:scale(1.01)}
+.upload-zone i{font-size:3.5rem;color:var(--secondary);margin-bottom:15px}
+.upload-zone p{color:var(--text);font-size:1.05rem;margin-bottom:6px;font-weight:600}
+.upload-zone small{color:#888}
+#preview-img{max-width:100%;max-height:320px;border-radius:14px;margin-top:15px;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.12)}
+.btn{padding:12px 22px;border:none;border-radius:12px;font-size:0.95rem;font-weight:600;cursor:pointer;transition:all 0.3s;display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:linear-gradient(135deg,var(--primary),var(--secondary));color:white;box-shadow:0 4px 15px rgba(45,106,79,0.25)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(45,106,79,0.35)}
+.btn-secondary{background:var(--light);color:var(--primary);border:2px solid var(--border)}
+.btn-secondary:hover{background:var(--border)}
+.btn-danger{background:linear-gradient(135deg,#c1121f,#f4a261);color:white}
+.btn-info{background:linear-gradient(135deg,var(--info),#6a8caf);color:white}
+.btn-group{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}
+.btn-sm{padding:8px 14px;font-size:0.8rem}
+.crop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:15px 0}
+.crop-card{background:var(--light);border-radius:14px;padding:14px;text-align:center;border:2px solid var(--border);transition:all 0.3s;cursor:pointer;position:relative;overflow:hidden}
+.crop-card:hover{transform:translateY(-4px);box-shadow:0 8px 20px rgba(0,0,0,0.1)}
+.crop-card.top{border-color:var(--primary);background:linear-gradient(135deg,#e8f5e9,#d8f3dc)}
+.crop-icon{font-size:2.2rem;margin-bottom:6px}
+.crop-name{font-weight:700;color:var(--primary);font-size:0.95rem}
+.confidence-bar{height:5px;background:#ddd;border-radius:3px;margin-top:6px;overflow:hidden}
+.confidence-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--primary));border-radius:3px;transition:width 1.2s ease}
+.disease-result{background:linear-gradient(135deg,#fff5f5,#fff);border-left:5px solid var(--danger);border-radius:14px;padding:20px;margin-top:15px}
+.disease-result.healthy{border-left-color:var(--secondary);background:linear-gradient(135deg,#f0fff4,#fff)}
+.disease-name{font-size:1.25rem;font-weight:700;color:var(--danger)}
+.disease-result.healthy .disease-name{color:var(--secondary)}
+.severity-badge{display:inline-block;padding:4px 14px;border-radius:20px;font-size:0.78rem;font-weight:700;margin-left:10px}
+.severity-high{background:#ffcdd2;color:#b71c1c}
+.severity-medium{background:#ffe0b2;color:#e65100}
+.severity-low{background:#c8e6c9;color:#1b5e20}
+.severity-healthy{background:#b9f6ca;color:#0d2818}
+.treatment-tabs{display:flex;gap:4px;margin:15px 0 10px;border-bottom:2px solid var(--border);background:var(--light);padding:4px;border-radius:12px 12px 0 0}
+.treatment-tab{padding:10px 20px;border:none;background:none;font-weight:600;cursor:pointer;border-radius:10px 10px 0 0;color:#888;transition:all 0.3s}
+.treatment-tab.active{background:white;color:var(--primary);box-shadow:0 -2px 8px rgba(0,0,0,0.05)}
+.treatment-content{display:none;padding:18px;background:var(--light);border-radius:0 0 14px 14px}
+.treatment-content.active{display:block}
+.treatment-item{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;padding:12px;background:white;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+#map{height:420px;border-radius:14px;margin:15px 0;border:2px solid var(--border)}
+.map-controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+.drone-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:15px 0}
+.stat-box{background:linear-gradient(135deg,var(--light),#e8f5e9);border-radius:12px;padding:16px;text-align:center;border:2px solid var(--border)}
+.stat-value{font-size:1.6rem;font-weight:800;color:var(--primary)}
+.stat-label{font-size:0.8rem;color:#666;margin-top:4px}
+.weather-main{display:flex;align-items:center;gap:20px;padding:24px;background:linear-gradient(135deg,#4a90e2,#357abd);border-radius:18px;color:white;margin-bottom:15px}
+.weather-temp{font-size:3.5rem;font-weight:800}
+.weather-info p{font-size:0.9rem;opacity:0.92}
+.weather-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.weather-item{background:var(--light);border-radius:12px;padding:14px;text-align:center}
+.weather-item i{font-size:1.4rem;color:var(--secondary);margin-bottom:6px}
+.weather-item span{display:block;font-weight:700;color:var(--primary);font-size:1.05rem}
+.weather-item small{color:#888;font-size:0.72rem}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-weight:600;margin-bottom:6px;color:var(--primary);font-size:0.9rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:12px;font-size:0.95rem;transition:all 0.3s;background:white}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 4px rgba(45,106,79,0.1)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:600px){.form-row{grid-template-columns:1fr}}
+.profile-header{display:flex;align-items:center;gap:20px;margin-bottom:20px;padding:20px;background:linear-gradient(135deg,var(--light),#e8f5e9);border-radius:16px}
+.profile-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;font-size:2rem;color:white}
+.profile-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:15px 0}
+.profile-stat{background:white;border-radius:12px;padding:14px;text-align:center;border:2px solid var(--border)}
+.profile-stat-value{font-size:1.4rem;font-weight:700;color:var(--primary)}
+.field-card{background:white;border-radius:14px;padding:16px;margin-bottom:12px;border:2px solid var(--border);display:flex;align-items:center;gap:15px}
+.field-icon{font-size:2rem}
+.field-details{flex:1}
+.field-name{font-weight:700;color:var(--primary)}
+.field-meta{font-size:0.85rem;color:#888}
+.history-item{display:flex;align-items:center;gap:14px;padding:16px;background:var(--light);border-radius:14px;margin-bottom:10px;border-left:4px solid var(--primary)}
+.history-item.severe{border-left-color:var(--danger);background:linear-gradient(135deg,#fff5f5,#fff)}
+.history-item.healthy{border-left-color:var(--secondary);background:linear-gradient(135deg,#f0fff4,#fff)}
+.offline-badge{display:none;position:fixed;top:0;left:0;right:0;z-index:2000;background:var(--danger);color:#fff;text-align:center;padding:6px 10px;font-size:0.82rem;font-weight:600}
+.offline-badge.show{display:block}
+.history-icon{font-size:2rem}
+.history-details{flex:1}
+.history-title{font-weight:700;color:var(--primary);font-size:0.95rem}
+.history-meta{font-size:0.82rem;color:#888}
+.market-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.market-card{background:var(--light);border-radius:14px;padding:16px;text-align:center;border:2px solid var(--border);transition:all 0.3s;position:relative;overflow:hidden}
+.market-card:hover{transform:scale(1.04);box-shadow:0 8px 20px rgba(0,0,0,0.1)}
+.market-card::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent),var(--secondary))}
+.market-crop{font-weight:700;color:var(--primary);font-size:0.95rem}
+.market-price{font-size:1.4rem;font-weight:800;margin:8px 0}
+.market-change{font-size:0.85rem;font-weight:700}
+.market-change.up{color:#27ae60}
+.market-change.down{color:#e74c3c}
+.chat-container{height:420px;border:2px solid var(--border);border-radius:14px;display:flex;flex-direction:column;background:white}
+.chat-messages{flex:1;overflow-y:auto;padding:16px;background:#f8faf9}
+.chat-msg{margin-bottom:14px;max-width:82%;padding:12px 16px;border-radius:14px;font-size:0.92rem;line-height:1.55}
+.chat-msg.user{background:linear-gradient(135deg,var(--primary),var(--secondary));color:white;margin-left:auto;border-bottom-right-radius:4px}
+.chat-msg.bot{background:white;color:var(--text);border:1px solid var(--border);border-bottom-left-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.04)}
+.chat-input-area{display:flex;gap:10px;padding:14px;background:#f8faf9;border-top:1px solid var(--border)}
+.chat-input-area input{flex:1;padding:12px 18px;border:2px solid var(--border);border-radius:25px;font-size:0.92rem}
+.chat-input-area input:focus{outline:none;border-color:var(--primary)}
+.chat-input-area button{width:42px;height:42px;border-radius:50%;border:none;background:var(--primary);color:white;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(13,40,24,0.85);display:none;align-items:center;justify-content:center;z-index:2000}
+.loading-overlay.show{display:flex}
+.spinner{width:56px;height:56px;border:4px solid rgba(255,255,255,0.2);border-top-color:#90e0ef;border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{color:white;margin-top:18px;font-size:1.05rem;text-align:center}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--dark);color:white;padding:14px 22px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.25);z-index:3000;transform:translateY(120px);opacity:0;transition:all 0.4s}
+.toast.show{transform:translateY(0);opacity:1}
+.calc-result{background:linear-gradient(135deg,var(--light),#e8f5e9);border-radius:14px;padding:22px;margin-top:15px;text-align:center;border:2px solid var(--border)}
+.calc-result .big-number{font-size:2.2rem;font-weight:800;color:var(--primary)}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
+.calendar-day{text-align:center;padding:8px 4px;border-radius:8px;font-size:0.8rem;cursor:pointer}
+.calendar-day:hover{background:var(--light)}
+.calendar-day.today{background:var(--primary);color:white;font-weight:700}
+.calendar-day.other-month{color:#ccc}
+.calendar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.calendar-header button{background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--primary)}
+.annotated-preview{max-width:100%;border-radius:14px;margin-top:15px;box-shadow:0 8px 24px rgba(0,0,0,0.12)}
+.detection-box{background:var(--light);border-radius:12px;padding:12px;margin-bottom:8px;border-left:4px solid var(--secondary)}
+.detection-box.high-severity{border-left-color:var(--danger)}
+.detection-box.medium-severity{border-left-color:var(--warning)}
+.moisture-bar{height:22px;background:#e0e0e0;border-radius:11px;overflow:hidden;margin:12px 0;position:relative}
+.moisture-fill{height:100%;border-radius:11px;transition:width 0.6s ease}
+.moisture-optimal{position:absolute;top:-6px;width:4px;height:34px;background:var(--danger);border-radius:2px}
+.moisture-labels{display:flex;justify-content:space-between;font-size:0.72rem;color:#888}
+.pixel-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:1px;background:#333;border-radius:8px;padding:4px;margin:10px 0;max-width:300px}
+.pixel-cell{width:100%;aspect-ratio:1;border-radius:2px}
+@media(max-width:768px){
+.header{flex-wrap:wrap;padding:10px}
+.logo{font-size:1.05rem}
+.tab-btn{padding:10px 12px;font-size:0.78rem}
+.tab-btn span{display:none}
+.weather-main{flex-direction:column;text-align:center;padding:18px}
+.weather-temp{font-size:2.8rem}
+.profile-header{flex-direction:column;text-align:center}
+}
+.hidden{display:none!important}
+.text-center{text-align:center}
+.mb-1{margin-bottom:10px}
+.mt-1{margin-top:10px}
+.text-muted{color:#888;font-size:0.88rem}
+.badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:0.72rem;font-weight:600}
+.badge-green{background:#c8e6c9;color:#1b5e20}
+.badge-blue{background:#bbdefb;color:#0d47a1}
+.badge-orange{background:#ffe0b2;color:#e65100}
+</style>
+</head>
+<body>
+<div id="offlineBadge" class="offline-badge">
+<i class="fas fa-wifi"></i> You're offline — some features (scan, weather, market prices) need an internet connection
+</div>
+<header class="header">
+<div class="logo"><i class="fas fa-seedling"></i> CropGuard AI Pro <span style="font-size:0.7rem;opacity:0.7">v3.0</span></div>
+<div class="header-actions">
+<button class="header-btn" onclick="showTab('profile')" id="profileBtn"><i class="fas fa-user-circle"></i> <span>Profile</span></button>
+<button class="header-btn" onclick="showTab('settings')"><i class="fas fa-cog"></i> <span>Settings</span></button>
+</div>
+</header>
+
+<nav class="tab-bar">
+<button class="tab-btn active" onclick="showTab('scan')" data-tab="scan"><i class="fas fa-camera"></i> <span>Scan</span></button>
+<button class="tab-btn" onclick="showTab('drone')" data-tab="drone"><i class="fas fa-helicopter"></i> <span>Drone</span></button>
+<button class="tab-btn" onclick="showTab('weather')" data-tab="weather"><i class="fas fa-cloud-sun"></i> <span>Weather</span></button>
+<button class="tab-btn" onclick="showTab('fertilizer')" data-tab="fertilizer"><i class="fas fa-flask"></i> <span>Fertilizer</span></button>
+<button class="tab-btn" onclick="showTab('irrigation')" data-tab="irrigation"><i class="fas fa-tint"></i> <span>Irrigation</span></button>
+<button class="tab-btn" onclick="showTab('calendar')" data-tab="calendar"><i class="fas fa-calendar-alt"></i> <span>Calendar</span></button>
+<button class="tab-btn" onclick="showTab('market')" data-tab="market"><i class="fas fa-chart-line"></i> <span>Market</span></button>
+<button class="tab-btn" onclick="showTab('yield')" data-tab="yield"><i class="fas fa-chart-bar"></i> <span>Yield</span></button>
+<button class="tab-btn" onclick="showTab('history')" data-tab="history"><i class="fas fa-history"></i> <span>History</span></button>
+<button class="tab-btn" onclick="showTab('chat')" data-tab="chat"><i class="fas fa-comments"></i> <span>AI Chat</span></button>
+</nav>
+
+<!-- SCAN TAB -->
+<div id="tab-scan" class="tab-content active">
+<div class="card">
+<div class="card-title"><i class="fas fa-brain"></i> AI Crop & Disease Detection (YOLOv8)</div>
+<div style="background:var(--light);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#456">
+<i class="fas fa-circle-info" style="color:var(--secondary)"></i>
+<span>Powered by <strong>YOLOv8 neural network</strong>. Upload a crop photo for instant AI detection with bounding boxes.</span>
+</div>
+<div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleDrop(event)">
+<i class="fas fa-cloud-upload-alt"></i>
+<p><strong>Click or drag & drop</strong> a leaf/fruit photo here</p>
+<small>Supports: JPG, PNG, WEBP | Max 15MB | YOLOv8 AI with bounding box detection</small>
+<img id="preview-img" alt="Preview">
+</div>
+<input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFileSelect(event)">
+<div class="form-group" style="margin-bottom: 16px;">
+    <label for="cropGroup" style="font-weight: 600; display: block; margin-bottom: 6px;">
+        What crop is this?
+    </label>
+    <select id="cropGroup" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc;">
+        <option value="auto">Auto-detect (run all models)</option>
+        <option value="v1">Tomato / Potato / Corn / Apple / Grape (PlantVillage crops)</option>
+        <option value="v2">Groundnut / Radish / Banana / Chilli / Cauliflower (Detection model)</option>
+        <option value="v3">Banana / Chilli / Cauliflower (Classifier)</option>
+    </select>
+</div>
+<div class="btn-group">
+<button class="btn btn-primary" onclick="analyzeImage()" id="analyzeBtn" disabled><i class="fas fa-microscope"></i> Run YOLOv8 Analysis</button>
+<button class="btn btn-secondary" onclick="clearScan()"><i class="fas fa-trash"></i> Clear</button>
+<button class="btn btn-info" onclick="document.getElementById('fileInput').click()"><i class="fas fa-folder-open"></i> Browse</button>
+</div>
+</div>
+
+<div id="scanResults" style="display:none;">
+<div class="card">
+<div class="card-title"><i class="fas fa-search"></i> YOLOv8 Detection Results</div>
+<div id="annotatedImageContainer" style="display:none;text-align:center">
+<img id="annotatedImage" class="annotated-preview" alt="YOLOv8 Detection">
+<p class="text-muted" style="margin-top:8px"><i class="fas fa-bounding-box"></i> YOLOv8 bounding box detections</p>
+</div>
+<div id="detectionList" style="margin-top:15px"></div>
+<div id="pixelGridWrap" style="display:none;margin-top:16px">
+<strong style="color:var(--primary);display:block;margin-bottom:8px;font-size:0.85rem"><i class="fas fa-th"></i> Pixel Health Map</strong>
+<div class="pixel-grid" id="pixelGrid"></div>
+</div>
+</div>
+<div class="card" id="diseaseCard">
+<div class="card-title"><i class="fas fa-virus"></i> Disease Analysis & Treatment</div>
+<div id="diseaseResult"></div>
+<div id="treatmentSection"></div>
+</div>
+<div class="btn-group">
+<button class="btn btn-secondary" onclick="exportReport()"><i class="fas fa-file-export"></i> Export Report</button>
+<button class="btn btn-secondary" onclick="saveToHistory()"><i class="fas fa-save"></i> Save to History</button>
+<button class="btn btn-info" onclick="shareResult()"><i class="fas fa-share-alt"></i> Share</button>
+</div>
+</div>
+</div>
+
+<!-- DRONE TAB -->
+<div id="tab-drone" class="tab-content">
+<div class="card">
+<div class="card-title"><i class="fas fa-wifi"></i> Wireless Drone Connection</div>
+<div style="background:var(--light);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#456">
+<i class="fas fa-circle-info" style="color:var(--secondary)"></i>
+<span>Any drone or companion app can send photos here over WiFi &mdash; no specific drone brand required. Point it at the address below (or <code>cropguard.local</code> if your network supports mDNS). Bluetooth-only drones can use the included <code>bluetooth_bridge.py</code> relay.</span>
+</div>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+<span id="droneConnDot" style="width:12px;height:12px;border-radius:50%;background:#ccc;display:inline-block;flex-shrink:0"></span>
+<strong id="droneConnStatusText" style="color:var(--text)">Checking connection…</strong>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Server address (give this to your drone/companion app)</label>
+<div style="display:flex;gap:8px">
+<input type="text" id="droneServerUrl" readonly style="flex:1;padding:10px;border-radius:8px;border:1px solid #ccc;background:#f7faf8;font-family:monospace">
+<button class="btn btn-secondary btn-sm" onclick="copyDroneUrl()"><i class="fas fa-copy"></i></button>
+</div>
+</div>
+<div class="form-group">
+<label>Upload endpoint (what the drone/app actually POSTs to)</label>
+<input type="text" id="droneEndpointUrl" readonly style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;background:#f7faf8;font-family:monospace;font-size:0.8rem">
+</div>
+</div>
+<div class="btn-group">
+<button class="btn btn-primary btn-sm" onclick="refreshDroneStatus()"><i class="fas fa-sync"></i> Refresh Connection</button>
+<button class="btn btn-info btn-sm" onclick="toggleDroneApiHelp()"><i class="fas fa-code"></i> How to connect a drone</button>
+</div>
+<div id="droneApiHelp" style="display:none;margin-top:14px;background:#0d2818;color:#d8f3dc;border-radius:12px;padding:14px;font-family:monospace;font-size:0.78rem;white-space:pre-wrap;overflow-x:auto"></div>
+</div>
+
+<div class="card">
+<div class="card-title"><i class="fas fa-satellite-dish"></i> Live Drone Feed</div>
+<p class="text-muted mb-1" style="font-size:0.82rem">Automatically updates as new images arrive from connected drones. Every image is analyzed by the same YOLOv8 model as manual uploads, whatever format the drone sends.</p>
+<div id="droneFeedList" style="margin-top:10px"><p class="text-muted" style="font-size:0.85rem">No drone scans received yet.</p></div>
+</div>
+
+<div class="card">
+<div class="card-title"><i class="fas fa-map-marked-alt"></i> Field Mapping & Spray Planning</div>
+<p class="text-muted mb-1">Click on the map to draw your field boundary.</p>
+<div class="map-controls">
+<button class="btn btn-primary btn-sm" onclick="getCurrentLocation()"><i class="fas fa-location-arrow"></i> My Location</button>
+<button class="btn btn-secondary btn-sm" onclick="clearMap()"><i class="fas fa-eraser"></i> Clear</button>
+<button class="btn btn-secondary btn-sm" onclick="undoLastPoint()"><i class="fas fa-undo"></i> Undo</button>
+<button class="btn btn-info btn-sm" onclick="simulateDroneFlight()"><i class="fas fa-play"></i> Simulate</button>
+</div>
+<div id="map"></div>
+<div class="drone-stats" id="droneStats"></div>
+</div>
+<div class="card">
+<div class="card-title"><i class="fas fa-spray-can"></i> Spray Planning</div>
+<div class="form-row">
+<div class="form-group">
+<label>Spray Type</label>
+<select id="sprayType">
+<option value="fungicide">Fungicide</option>
+<option value="pesticide">Pesticide</option>
+<option value="fertilizer">Fertilizer</option>
+<option value="herbicide">Herbicide</option>
+</select>
+</div>
+<div class="form-group">
+<label>Drone Model</label>
+<select id="sprayDroneModel">
+<option value="t40">DJI Agras T40 (40L)</option>
+<option value="t30">DJI Agras T30 (30L)</option>
+<option value="t20">DJI Agras T20 (20L)</option>
+<option value="custom">Custom</option>
+</select>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Custom Tank (L)</label>
+<input type="number" id="customTank" placeholder="e.g. 25" min="1">
+</div>
+<div class="form-group">
+<label>Application Rate (L/ha)</label>
+<input type="number" id="appRate" value="15" min="1">
+</div>
+</div>
+<div class="btn-group">
+<button class="btn btn-primary" onclick="generateFlightPath()"><i class="fas fa-route"></i> Generate Path</button>
+<button class="btn btn-secondary" onclick="saveDronePlan()"><i class="fas fa-save"></i> Save Plan</button>
+<button class="btn btn-info" id="flyMissionBtn" onclick="flyMission()" disabled><i class="fas fa-plane-departure"></i> Fly This Mission</button>
+</div>
+<div id="flightPathResult"></div>
+<div id="missionPanel" style="display:none;margin-top:16px">
+<div class="card" style="background:linear-gradient(135deg,#e8f5e9,#fff);border:2px solid var(--secondary)">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+<div class="card-title" style="margin-bottom:0"><i class="fas fa-plane"></i> Mission In Progress</div>
+<button class="btn btn-sm" style="background:var(--danger);color:white" onclick="abortMission()"><i class="fas fa-hand-paper"></i> ABORT / RETURN HOME</button>
+</div>
+<div id="missionStatusLine" style="font-weight:600;margin-bottom:8px">Starting...</div>
+<div style="background:#fff;border-radius:10px;padding:10px;max-height:220px;overflow-y:auto;font-size:0.8rem;font-family:monospace" id="missionLog"></div>
+</div>
+</div>
+</div>
+<div class="card">
+<div class="card-title"><i class="fas fa-list"></i> Saved Drone Plans</div>
+<div id="dronePlansList"></div>
+</div>
+</div>
+
+<!-- WEATHER TAB -->
+<div id="tab-weather" class="tab-content">
+<div class="card">
+<div class="card-title"><i class="fas fa-cloud-sun"></i> Live Weather & Farming Advisory</div>
+<div class="btn-group mb-1">
+<button class="btn btn-primary" onclick="detectLocation()"><i class="fas fa-location-arrow"></i> Detect Location</button>
+<button class="btn btn-secondary" onclick="manualLocation()"><i class="fas fa-map-marker-alt"></i> Manual</button>
+<button class="btn btn-info" onclick="getWeatherForecast()"><i class="fas fa-calendar-week"></i> 7-Day</button>
+</div>
+<div id="weatherDisplay" style="display:none;">
+<div class="weather-main">
+<div class="weather-temp" id="weatherTemp">--°C</div>
+<div class="weather-info">
+<p style="font-size:1.15rem;font-weight:700" id="weatherDesc">--</p>
+<p id="weatherLocation"><i class="fas fa-map-marker-alt"></i> --</p>
+<p id="weatherTime">--</p>
+</div>
+</div>
+<div class="weather-grid" id="weatherGrid"></div>
+<div class="card mt-1" style="background:linear-gradient(135deg,#fff8e1,#fff);border-color:#ffe0b2">
+<div class="card-title"><i class="fas fa-lightbulb"></i> AI Farming Advisory</div>
+<div id="weatherAdvice"></div>
+</div>
+<div id="forecastSection" style="display:none;margin-top:15px">
+<div class="card-title"><i class="fas fa-calendar-week"></i> 7-Day Forecast</div>
+<div id="forecastGrid" class="weather-grid"></div>
+</div>
+</div>
+<div id="weatherLoading" class="text-center" style="display:none;padding:40px">
+<i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--secondary)"></i>
+<p class="text-muted mt-1">Fetching weather...</p>
+</div>
+</div>
+</div>
+
+<!-- FERTILIZER TAB -->
+<div id="tab-fertilizer" class="tab-content">
+<div class="card">
+<div class="card-title"><i class="fas fa-flask"></i> Smart Fertilizer Calculator</div>
+<div class="form-row">
+<div class="form-group">
+<label>Select Crop</label>
+<select id="fertCrop">
+<option value="">-- Select --</option>
+<option value="wheat">Wheat</option>
+<option value="rice">Rice</option>
+<option value="corn">Corn</option>
+<option value="soybean">Soybean</option>
+<option value="cotton">Cotton</option>
+<option value="tomato">Tomato</option>
+<option value="potato">Potato</option>
+<option value="sugarcane">Sugarcane</option>
+</select>
+</div>
+<div class="form-group">
+<label>Field Area (Acres)</label>
+<input type="number" id="fertArea" placeholder="e.g. 5" min="0.1" step="0.1">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Growth Stage</label>
+<select id="fertStage">
+<option value="seedling">Seedling</option>
+<option value="vegetative">Vegetative</option>
+<option value="flowering">Flowering</option>
+<option value="fruiting">Fruiting</option>
+</select>
+</div>
+<div class="form-group">
+<label>Soil Type</label>
+<select id="fertSoil">
+<option value="loamy">Loamy</option>
+<option value="clay">Clay</option>
+<option value="sandy">Sandy</option>
+<option value="silty">Silty</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Fertilizer Type</label>
+<select id="fertType">
+<option value="chemical">Chemical</option>
+<option value="organic">Organic</option>
+<option value="balanced">Balanced</option>
+<option value="bio">Bio-Fertilizers</option>
+</select>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Soil Test: Nitrogen (kg/ha) <small style="font-weight:400">optional</small></label>
+<input type="number" id="soilN" placeholder="e.g. 40" min="0" step="1">
+</div>
+<div class="form-group">
+<label>Soil Test: Phosphorus (kg/ha) <small style="font-weight:400">optional</small></label>
+<input type="number" id="soilP" placeholder="e.g. 20" min="0" step="1">
+</div>
+</div>
+<button class="btn btn-primary" onclick="calculateFertilizer()"><i class="fas fa-calculator"></i> Calculate</button>
+<div id="fertilizerResult"></div>
+</div>
+</div>
+
+<!-- IRRIGATION TAB -->
+<div id="tab-irrigation" class="tab-content">
+<div class="card">
+<div class="card-title"><i class="fas fa-tint"></i> Smart Irrigation Advisor</div>
+<div class="form-row">
+<div class="form-group">
+<label>Crop Type</label>
+<select id="irrCrop">
+<option value="wheat">Wheat</option>
+<option value="rice">Rice</option>
+<option value="corn">Corn</option>
+<option value="tomato">Tomato</option>
+<option value="potato">Potato</option>
+<option value="cotton">Cotton</option>
+</select>
+</div>
+<div class="form-group">
+<label>Current Soil Moisture (%)</label>
+<input type="number" id="irrMoisture" placeholder="0-100" min="0" max="100">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Days Since Last Irrigation</label>
+<input type="number" id="irrDays" placeholder="e.g. 3" min="0">
+</div>
+<div class="form-group">
+<label>Field Area (Acres)</label>
+<input type="number" id="irrArea" placeholder="e.g. 5" min="0.1" step="0.1">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Irrigation Method</label>
+<select id="irrMethod">
+<option value="flood">Flood</option>
+<option value="sprinkler">Sprinkler</option>
+<option value="drip">Drip</option>
+<option value="furrow">Furrow</option>
+</select>
+</div>
+<div class="form-group">
+<label>Expected Rainfall (mm)</label>
+<input type="number" id="irrRain" value="0" min="0">
+</div>
+</div>
+<button class="btn btn-primary" onclick="checkIrrigation()"><i class="fas fa-check-circle"></i> Check Need</button>
+<div id="irrigationResult"></div>
+</div>
+</div>
+
+<!-- CALENDAR TAB -->
+<div id="tab-calendar" class="tab-content">
+<div class="card">
+<div class="card-title"><i class="fas fa-calendar-alt"></i> Farming Calendar</div>
+<div class="calendar-header">
+<button onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+<h3 id="calendarMonth" style="color:var(--primary)">July 2026</h3>
+<button onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px;font-weight:700;color:var(--primary);text-align:center;font-size:0.85rem">
+<div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+</div>
+<div class="calendar-grid" id="calendarGrid"></div>
+</div>
+<div class="card">
+<div class="card-title"><i class="fas fa-plus-circle"></i> Add Task</div>
+<div class="form-row">
+<div class="form-group">
+<label>Task Name</label>
+<input type="text" id="taskName" placeholder="e.g. Apply Urea">
+</div>
+<div class="form-group">
+<label>Date</label>
+<input type="date" id="taskDate">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Task Type</label>
+<select id="taskType">
+<option value="irrigation">Irrigation</option>
+<option value="fertilizer">Fertilizer</option>
+<option value="spray">Spray</option>
+<option value="harvest">Harvest</option>
+<option value="sowing">Sowing</option>
+</select>
+</div>
+<div class="form-group">
+<label>Field</label>
+<input type="text" id="taskField" placeholder="e.g. Field A">
+</div>
+</div>
+<div class="form-group">
+<label>Notes</label>
+<textarea id="taskNotes" rows="2" placeholder="Details..."></textarea>
+</div>
+<button class="btn btn-primary" onclick="addTask()"><i class="fas fa-plus"></i> Add Task</button>
+<div id="taskList" style="margin-top:15px"></div>
+</div>
+</div>
+
+<!-- MARKET TAB -->
+<div id="tab-market" class="tab-content">
+<div class="card">
+<div class="card-title"><i class="fas fa-chart-line"></i> Live Crop Market Prices</div>
+<div class="form-row">
+<div class="form-group">
+<label>Market / Mandi</label>
+<select id="marketLocation" onchange="renderMarket()">
+<option value="national">National Average</option>
+<option value="delhi">Delhi</option>
+<option value="mumbai">Mumbai</option>
+<option value="kolkata">Kolkata</option>
+<option value="chennai">Chennai</option>
+<option value="hyderabad">Hyderabad</option>
+</select>
+</div>
+<div class="form-group">
+<label>Sort By</label>
+<select id="marketSort" onchange="renderMarket()">
+<option value="name">Name</option>
+<option value="price-high">Price: High to Low</option>
+<option value="price-low">Price: Low to High</option>
+</select>
+</div>
+</div>
+<div class="market-grid" id="marketGrid"></div>
+</div>
+</div>
+
+<!-- YIELD TAB -->
+<div id="tab-yield" class="tab-content">
+<div class="card">
+<div class="card-title"><i class="fas fa-chart-bar"></i> Yield Estimator & Profit Calculator</div>
+<div class="form-row">
+<div class="form-group">
+<label>Crop</label>
+<select id="yieldCrop" onchange="renderYieldDefaults()">
+<option value="wheat">Wheat</option>
+<option value="rice">Rice</option>
+<option value="corn">Corn</option>
+<option value="cotton">Cotton</option>
+<option value="tomato">Tomato</option>
+<option value="potato">Potato</option>
+<option value="sugarcane">Sugarcane</option>
+<option value="soybean">Soybean</option>
+</select>
+</div>
+<div class="form-group">
+<label>Field Area (Acres)</label>
+<input type="number" id="yieldArea" placeholder="e.g. 10" min="0.1" step="0.1">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Expected Yield/Acre (Quintal)</label>
+<input type="number" id="yieldPerAcre" placeholder="e.g. 25" min="1" step="0.5">
+</div>
+<div class="form-group">
+<label>Market Price/Quintal (Rs)</label>
+<input type="number" id="yieldPrice" placeholder="e.g. 2400" min="1">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Total Input Cost/Acre (Rs)</label>
+<input type="number" id="yieldCost" placeholder="e.g. 15000" min="0">
+</div>
+<div class="form-group">
+<label>Irrigation Type</label>
+<select id="yieldIrrigation">
+<option value="rainfed">Rainfed</option>
+<option value="canal">Canal</option>
+<option value="tubewell">Tube Well</option>
+<option value="drip">Drip</option>
+</select>
+</div>
+</div>
+<button class="btn btn-primary" onclick="calculateYield()"><i class="fas fa-calculator"></i> Calculate</button>
+<div id="yieldResult"></div>
+</div>
+</div>
+
+<!-- HISTORY TAB -->
+<div id="tab-history" class="tab-content">
+<div class="card">
+<div class="card-title"><i class="fas fa-history"></i> Scan History</div>
+<div class="btn-group mb-1">
+<button class="btn btn-secondary btn-sm" onclick="exportAllHistory()"><i class="fas fa-file-export"></i> Export CSV</button>
+<button class="btn btn-danger btn-sm" onclick="clearHistory()"><i class="fas fa-trash-alt"></i> Clear All</button>
+</div>
+<div id="historyList"></div>
+</div>
+</div>
+
+<!-- CHAT TAB -->
+<div id="tab-chat" class="tab-content">
+<div class="card">
+<div class="card-title"><i class="fas fa-robot"></i> AI Farming Expert</div>
+<div class="chat-container">
+<div class="chat-messages" id="chatMessages">
+<div class="chat-msg bot">Hello farmer! I am your CropGuard AI expert. Ask me about:<br>- Crop diseases & treatments<br>- Fertilizer recommendations<br>- Irrigation scheduling<br>- Pest control<br>- Market prices<br><br>How can I help you today?</div>
+</div>
+<div class="chat-input-area">
+<input type="text" id="chatInput" placeholder="Ask anything about farming..." onkeypress="if(event.key==='Enter')sendChat()">
+<button onclick="sendChat()" title="Send"><i class="fas fa-paper-plane"></i></button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- PROFILE TAB -->
+<div id="tab-profile" class="tab-content">
+<div class="card">
+<div class="card-title"><i class="fas fa-user-circle"></i> Farmer Profile</div>
+<div class="profile-header">
+<div class="profile-avatar">👨‍🌾</div>
+<div class="profile-info">
+<h3 id="profileName">Guest Farmer</h3>
+<p id="profileLocation">Location not set</p>
+</div>
+</div>
+<div class="profile-stats" id="profileStats">
+<div class="profile-stat"><div class="profile-stat-value" id="statScans">0</div><div class="profile-stat-label">Scans Done</div></div>
+<div class="profile-stat"><div class="profile-stat-value" id="statFields">0</div><div class="profile-stat-label">Fields Added</div></div>
+<div class="profile-stat"><div class="profile-stat-value" id="statDiseases">0</div><div class="profile-stat-label">Diseases Found</div></div>
+</div>
+</div>
+<div class="card">
+<div class="card-title"><i class="fas fa-user-edit"></i> Edit Profile</div>
+<div class="form-row">
+<div class="form-group">
+<label>Full Name</label>
+<input type="text" id="profName" placeholder="Your name">
+</div>
+<div class="form-group">
+<label>Phone</label>
+<input type="tel" id="profPhone" placeholder="+91...">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Village/Town</label>
+<input type="text" id="profVillage" placeholder="e.g. Rampur">
+</div>
+<div class="form-group">
+<label>District</label>
+<input type="text" id="profDistrict" placeholder="e.g. Ludhiana">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>State</label>
+<select id="profState">
+<option value="">-- Select --</option>
+<option value="punjab">Punjab</option>
+<option value="haryana">Haryana</option>
+<option value="up">Uttar Pradesh</option>
+<option value="mp">Madhya Pradesh</option>
+<option value="rajasthan">Rajasthan</option>
+<option value="gujarat">Gujarat</option>
+<option value="maharashtra">Maharashtra</option>
+<option value="karnataka">Karnataka</option>
+<option value="telangana">Telangana</option>
+<option value="ap">Andhra Pradesh</option>
+<option value="tamilnadu">Tamil Nadu</option>
+<option value="wb">West Bengal</option>
+<option value="bihar">Bihar</option>
+<option value="odisha">Odisha</option>
+</select>
+</div>
+<div class="form-group">
+<label>Farm Size (Acres)</label>
+<input type="number" id="profFarmSize" placeholder="e.g. 25" min="0" step="0.1">
+</div>
+</div>
+<button class="btn btn-primary" onclick="saveProfile()"><i class="fas fa-save"></i> Save Profile</button>
+</div>
+<div class="card">
+<div class="card-title"><i class="fas fa-map"></i> My Fields</div>
+<div id="fieldList"></div>
+<div class="form-row" style="margin-top:15px">
+<div class="form-group">
+<label>Field Name</label>
+<input type="text" id="fieldName" placeholder="e.g. Field A">
+</div>
+<div class="form-group">
+<label>Area (Acres)</label>
+<input type="number" id="fieldArea" placeholder="e.g. 5" min="0.1" step="0.1">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Crop</label>
+<select id="fieldCrop">
+<option value="">-- Select --</option>
+<option value="wheat">Wheat</option>
+<option value="rice">Rice</option>
+<option value="corn">Corn</option>
+<option value="cotton">Cotton</option>
+<option value="tomato">Tomato</option>
+<option value="potato">Potato</option>
+<option value="sugarcane">Sugarcane</option>
+<option value="soybean">Soybean</option>
+<option value="fallow">Fallow</option>
+</select>
+</div>
+<div class="form-group">
+<label>Soil Type</label>
+<select id="fieldSoil">
+<option value="loamy">Loamy</option>
+<option value="clay">Clay</option>
+<option value="sandy">Sandy</option>
+<option value="silty">Silty</option>
+</select>
+</div>
+</div>
+<button class="btn btn-primary" onclick="addField()"><i class="fas fa-plus"></i> Add Field</button>
+</div>
+</div>
+
+<!-- SETTINGS TAB -->
+<div id="tab-settings" class="tab-content">
+<div class="card">
+<div class="card-title"><i class="fas fa-cog"></i> Settings</div>
+<div class="form-row">
+<div class="form-group">
+<label>Language</label>
+<select id="langSelect">
+<option value="en">English</option>
+<option value="hi">Hindi</option>
+<option value="pa">Punjabi</option>
+</select>
+</div>
+<div class="form-group">
+<label>Currency</label>
+<select id="currencySelect">
+<option value="INR">INR (Rs)</option>
+<option value="USD">USD ($)</option>
+<option value="EUR">EUR (€)</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>YOLOv8 Confidence Threshold</label>
+<input type="range" id="confThreshold" min="0.1" max="0.9" step="0.05" value="0.25">
+<small class="text-muted">Current: <span id="confValue">0.25</span></small>
+</div>
+<div class="btn-group">
+<button class="btn btn-primary" onclick="saveSettings()"><i class="fas fa-save"></i> Save</button>
+<button class="btn btn-secondary" onclick="exportAllData()"><i class="fas fa-download"></i> Export</button>
+<button class="btn btn-danger" onclick="resetAllData()"><i class="fas fa-exclamation-triangle"></i> Reset</button>
+</div>
+</div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+<div style="text-align:center">
+<div class="spinner"></div>
+<div class="loading-text" id="loadingText">Processing...</div>
+<div class="loading-sub" id="loadingSub">YOLOv8 neural network analyzing</div>
+</div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
