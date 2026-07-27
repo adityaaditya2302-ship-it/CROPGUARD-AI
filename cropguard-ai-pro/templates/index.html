@@ -108,6 +108,41 @@ body{
 .header-btn:hover{background:rgba(255,255,255,0.12);color:white;border-color:rgba(255,255,255,0.2)}
 
 /* ═══════════════════════════════════════════════
+   DRONE COMMAND CENTER (sub-tabs + widgets)
+═══════════════════════════════════════════════ */
+.dcc-subtabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
+.dcc-subtab{
+  padding:8px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);
+  background:rgba(255,255,255,0.04);color:var(--slate-400);font-size:0.78rem;font-weight:600;
+  cursor:pointer;transition:all 0.2s;font-family:'Inter',sans-serif;
+}
+.dcc-subtab:hover{color:#e2e8f0;background:rgba(255,255,255,0.08);}
+.dcc-subtab.active{color:var(--green-400);border-color:var(--green-400);background:rgba(52,211,153,0.08);}
+.dcc-subpanel{display:none;}
+.dcc-subpanel.active{display:block;}
+.dcc-sim-badge{
+  display:inline-block;font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:20px;
+  background:rgba(96,165,250,0.15);color:var(--blue-400);border:1px solid rgba(96,165,250,0.3);margin-left:8px;
+}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;}
+.stat-box{
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:14px;
+  padding:12px 14px;
+}
+.stat-box .stat-label{font-size:0.7rem;color:var(--slate-400);font-weight:600;text-transform:uppercase;letter-spacing:0.03em;}
+.stat-box .stat-value{font-size:1.3rem;font-weight:700;color:#e2e8f0;margin-top:4px;}
+.stat-box .stat-value.warn{color:#fbbf24;}
+.stat-box .stat-value.crit{color:var(--red-500);}
+.dcc-list-item{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:10px 12px;border-radius:10px;background:rgba(255,255,255,0.03);margin-bottom:8px;font-size:0.82rem;
+}
+.dcc-pill{padding:3px 10px;border-radius:20px;font-size:0.68rem;font-weight:700;}
+.dcc-pill.ok{background:rgba(52,211,153,0.15);color:var(--green-400);}
+.dcc-pill.warn{background:rgba(251,191,36,0.15);color:#fbbf24;}
+.dcc-pill.crit{background:rgba(239,68,68,0.15);color:var(--red-500);}
+
+/* ═══════════════════════════════════════════════
    NAVIGATION TABS
 ═══════════════════════════════════════════════ */
 .nav-tabs{
@@ -840,45 +875,326 @@ body{
 
 <!-- ──────────────── DRONE MISSION ──────────────── -->
 <div class="tab-panel" id="panel-drone">
-  <div class="grid-2">
+
+  <div class="dcc-subtabs">
+    <button class="dcc-subtab active" onclick="dccSwitch('overview', this)"><i class="fa fa-heartbeat"></i> Health</button>
+    <button class="dcc-subtab" onclick="dccSwitch('mission', this)"><i class="fa fa-route"></i> Mission Planning</button>
+    <button class="dcc-subtab" onclick="dccSwitch('copilot', this)"><i class="fa fa-magic"></i> AI Copilot</button>
+    <button class="dcc-subtab" onclick="dccSwitch('fleet', this)"><i class="fa fa-layer-group"></i> Fleet</button>
+    <button class="dcc-subtab" onclick="dccSwitch('emergency', this)"><i class="fa fa-exclamation-triangle"></i> Emergency</button>
+    <button class="dcc-subtab" onclick="dccSwitch('maintenance', this)"><i class="fa fa-tools"></i> Maintenance</button>
+    <button class="dcc-subtab" onclick="dccSwitch('scheduler', this)"><i class="fa fa-calendar-alt"></i> Scheduler</button>
+    <button class="dcc-subtab" onclick="dccSwitch('analytics', this)"><i class="fa fa-chart-area"></i> Analytics</button>
+    <button class="dcc-subtab" onclick="dccSwitch('sustainability', this)"><i class="fa fa-leaf"></i> Sustainability</button>
+    <button class="dcc-subtab" onclick="dccSwitch('scanmodes', this)"><i class="fa fa-search"></i> AI Scan Modes</button>
+    <button class="dcc-subtab" onclick="dccSwitch('spray', this)"><i class="fa fa-tint"></i> Smart Spraying</button>
+    <button class="dcc-subtab" onclick="dccSwitch('farmmap', this)"><i class="fa fa-map"></i> Farm Map</button>
+    <button class="dcc-subtab" onclick="dccSwitch('sensorhub', this)"><i class="fa fa-satellite-dish"></i> Sensor Hub</button>
+    <button class="dcc-subtab" onclick="dccSwitch('mapping3d', this)"><i class="fa fa-cube"></i> 3D Mapping</button>
+    <button class="dcc-subtab" onclick="dccSwitch('security', this)"><i class="fa fa-shield-alt"></i> Security</button>
+    <button class="dcc-subtab" onclick="dccSwitch('compliance', this)"><i class="fa fa-clipboard-check"></i> Compliance</button>
+    <button class="dcc-subtab" onclick="dccSwitch('collaboration', this)"><i class="fa fa-users"></i> Collaboration</button>
+  </div>
+
+  <!-- ── HEALTH / OVERVIEW ── -->
+  <div class="dcc-subpanel active" id="dcc-overview">
     <div class="card">
-      <div class="card-title"><i class="fa fa-helicopter"></i> Mission Planner</div>
-      <div class="mission-type-btns">
-        <button class="mission-btn active" id="mission-scan-btn" onclick="selectMissionType('scan')">
-          <i class="fa fa-camera"></i>Field Scan
-        </button>
-        <button class="mission-btn" id="mission-spray-btn" onclick="selectMissionType('spray')">
-          <i class="fa fa-tint"></i>Precision Spray
-        </button>
+      <div class="card-title"><i class="fa fa-heartbeat"></i> Drone Health Dashboard <span class="dcc-sim-badge" id="dcc-overview-badge">SIMULATED</span></div>
+      <div class="card-subtitle">Live parameters refresh every 5s. Connect a real drone (Fleet tab) to replace simulated data.</div>
+      <div class="stat-grid" id="dcc-telemetry-grid" style="margin-top:14px;">Loading…</div>
+      <div style="margin-top:14px;">
+        <div class="card-title" style="font-size:0.9rem;"><i class="fa fa-cloud-sun"></i> Flight Safety</div>
+        <div id="dcc-flight-safety">Loading…</div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Home / Takeoff Location</label>
-        <div class="form-row">
-          <input class="form-input" type="number" id="home-lat" placeholder="Latitude" value="20.5937" step="0.0001">
-          <input class="form-input" type="number" id="home-lon" placeholder="Longitude" value="78.9629" step="0.0001">
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Scan Altitude (meters)</label>
-        <input class="form-input" type="number" id="drone-alt" value="30" min="10" max="120">
-      </div>
-      <div class="alert alert-info" style="margin-top:12px;">
-        <i class="fa fa-map-marker-alt"></i>
-        <div>Click on the map to draw your <strong>field boundary</strong>. Add at least 3 points.</div>
-      </div>
-      <div id="drone-points-list" style="margin:10px 0;min-height:40px;font-size:0.8rem;color:var(--slate-400);"></div>
-      <div class="btn-group">
-        <button class="btn btn-blue" onclick="planMission()"><i class="fa fa-route"></i> Plan Mission</button>
-        <button class="btn btn-secondary" onclick="clearMission()"><i class="fa fa-times"></i> Clear</button>
-      </div>
-    </div>
-    <div>
-      <div class="card" style="padding:0;overflow:hidden;">
-        <div id="drone-map" style="height:350px;border-radius:20px;"></div>
-      </div>
-      <div id="mission-result" style="margin-top:16px;"></div>
     </div>
   </div>
+
+  <!-- ── MISSION PLANNING (existing map-based planner) ── -->
+  <div class="dcc-subpanel" id="dcc-mission">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><i class="fa fa-helicopter"></i> Mission Planner</div>
+        <div class="mission-type-btns">
+          <button class="mission-btn active" id="mission-scan-btn" onclick="selectMissionType('scan')">
+            <i class="fa fa-camera"></i>Field Scan
+          </button>
+          <button class="mission-btn" id="mission-spray-btn" onclick="selectMissionType('spray')">
+            <i class="fa fa-tint"></i>Precision Spray
+          </button>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Home / Takeoff Location</label>
+          <div class="form-row">
+            <input class="form-input" type="number" id="home-lat" placeholder="Latitude" value="20.5937" step="0.0001">
+            <input class="form-input" type="number" id="home-lon" placeholder="Longitude" value="78.9629" step="0.0001">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Scan Altitude (meters)</label>
+          <input class="form-input" type="number" id="drone-alt" value="30" min="10" max="120">
+        </div>
+        <div class="alert alert-info" style="margin-top:12px;">
+          <i class="fa fa-map-marker-alt"></i>
+          <div>Click on the map to draw your <strong>field boundary</strong>. Add at least 3 points.</div>
+        </div>
+        <div id="drone-points-list" style="margin:10px 0;min-height:40px;font-size:0.8rem;color:var(--slate-400);"></div>
+        <div class="btn-group">
+          <button class="btn btn-blue" onclick="planMission()"><i class="fa fa-route"></i> Plan Mission</button>
+          <button class="btn btn-secondary" onclick="clearMission()"><i class="fa fa-times"></i> Clear</button>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div id="drone-map" style="height:350px;border-radius:20px;"></div>
+        </div>
+        <div id="mission-result" style="margin-top:16px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AI MISSION COPILOT ── -->
+  <div class="dcc-subpanel" id="dcc-copilot">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-magic"></i> AI Mission Copilot</div>
+      <div class="card-subtitle">Describe the mission in plain language. This parses your command into scan modes + actions; draw a field boundary in Mission Planning first to auto-generate real waypoints.</div>
+      <div class="form-group" style="margin-top:12px;">
+        <textarea class="form-input" id="copilot-command" rows="3" placeholder="e.g. Scan the north wheat field, detect early disease, and spray only infected areas"></textarea>
+      </div>
+      <button class="btn btn-blue" onclick="runCopilot()"><i class="fa fa-paper-plane"></i> Parse Command</button>
+      <button class="btn btn-secondary" id="voice-btn" onclick="startVoiceCommand()"><i class="fa fa-microphone"></i> Speak Command</button>
+      <div style="font-size:0.72rem;color:var(--slate-400);margin-top:6px;">Voice uses your browser's built-in speech recognition (Chrome/Edge) — no server round-trip.</div>
+      <div id="copilot-result" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <!-- ── FLEET MANAGEMENT ── -->
+  <div class="dcc-subpanel" id="dcc-fleet">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-layer-group"></i> Fleet Management</div>
+      <div class="card-subtitle">Drones with no connection string are simulated. Add a MAVLink connection string (e.g. udp://:14540) to link a real drone later.</div>
+      <div class="form-row" style="margin-top:12px;">
+        <input class="form-input" id="fleet-name" placeholder="Drone name">
+        <input class="form-input" id="fleet-zone" placeholder="Zone (e.g. North Field)">
+      </div>
+      <button class="btn btn-blue" style="margin-top:10px;" onclick="addFleetDrone()"><i class="fa fa-plus"></i> Add Drone</button>
+      <div id="fleet-list" style="margin-top:16px;">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ── EMERGENCY SYSTEM ── -->
+  <div class="dcc-subpanel" id="dcc-emergency">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-exclamation-triangle"></i> Emergency System</div>
+      <div id="emergency-alerts" style="margin:10px 0;">Loading…</div>
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="emergencyAction('return_home')"><i class="fa fa-home"></i> Return Home</button>
+        <button class="btn btn-secondary" onclick="emergencyAction('emergency_land')"><i class="fa fa-arrow-down"></i> Emergency Land</button>
+        <button class="btn btn-secondary" onclick="emergencyAction('stop_spraying')"><i class="fa fa-ban"></i> Stop Spraying</button>
+        <button class="btn btn-secondary" onclick="emergencyAction('stop_mission')"><i class="fa fa-stop"></i> Stop Mission</button>
+      </div>
+      <div id="emergency-action-result" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <!-- ── MAINTENANCE ── -->
+  <div class="dcc-subpanel" id="dcc-maintenance">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-tools"></i> Drone Maintenance</div>
+      <div class="form-row" style="margin-top:12px;">
+        <input class="form-input" id="maint-item" placeholder="Item (e.g. Propeller, Battery)">
+        <input class="form-input" id="maint-action" placeholder="Action (e.g. Replace, Calibrate)">
+      </div>
+      <button class="btn btn-blue" style="margin-top:10px;" onclick="addMaintenance()"><i class="fa fa-plus"></i> Log Maintenance</button>
+      <div id="maintenance-list" style="margin-top:16px;">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ── MISSION SCHEDULER ── -->
+  <div class="dcc-subpanel" id="dcc-scheduler">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-calendar-alt"></i> Mission Scheduler</div>
+      <div class="form-row" style="margin-top:12px;">
+        <input class="form-input" id="sched-name" placeholder="Mission name">
+        <select class="form-input" id="sched-recurrence">
+          <option value="once">Once</option>
+          <option value="daily">Every Morning (daily)</option>
+          <option value="weekly">Every Week</option>
+          <option value="monthly">Every Month</option>
+          <option value="before_rain">Before Rain</option>
+          <option value="after_rain">After Rain</option>
+          <option value="sunrise">Sunrise</option>
+          <option value="sunset">Sunset</option>
+        </select>
+      </div>
+      <button class="btn btn-blue" style="margin-top:10px;" onclick="addSchedule()"><i class="fa fa-plus"></i> Add Schedule</button>
+      <div id="schedule-list" style="margin-top:16px;">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ── ANALYTICS ── -->
+  <div class="dcc-subpanel" id="dcc-analytics">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><i class="fa fa-th"></i> Disease/Pest Heatmap</div>
+        <div class="card-subtitle">Grid built from real scan history (needs GPS-tagged scans).</div>
+        <div id="analytics-heatmap" style="margin-top:12px;">Loading…</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fa fa-history"></i> Historical Timeline</div>
+        <div class="card-subtitle">Scans grouped by day.</div>
+        <div id="analytics-timeline" style="margin-top:12px;">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SUSTAINABILITY ── -->
+  <div class="dcc-subpanel" id="dcc-sustainability">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-leaf"></i> Sustainability Dashboard</div>
+      <div class="card-subtitle" id="sustainability-basis">Loading…</div>
+      <div class="stat-grid" id="sustainability-grid" style="margin-top:14px;">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ── AI SCAN MODES ── -->
+  <!-- ── SMART SPRAYING ── -->
+  <div class="dcc-subpanel" id="dcc-spray">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-tint"></i> Smart Spraying</div>
+      <div class="card-subtitle">Real dose/duration calculation via the SprayController, based on severity. Actual pump actuation needs a connected drone with a spray rig — not available in this deployment.</div>
+      <div class="form-row" style="margin-top:12px;">
+        <select class="form-input" id="spray-severity">
+          <option value="Low">Low</option>
+          <option value="Medium" selected>Medium</option>
+          <option value="High">High</option>
+          <option value="Critical">Critical</option>
+        </select>
+        <input class="form-input" id="spray-disease" placeholder="Disease name (e.g. tomato_early_blight)">
+      </div>
+      <button class="btn btn-blue" style="margin-top:10px;" onclick="calcSprayDose()"><i class="fa fa-calculator"></i> Calculate Dose</button>
+      <div id="spray-result" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <div class="dcc-subpanel" id="dcc-scanmodes">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-search"></i> AI Automatic Detection Modes</div>
+      <div class="card-subtitle">Disease/Pest/Weed use your real trained models. Every other mode below uses an image-statistics heuristic (clearly labeled) until you train a dedicated model for it.</div>
+      <div class="form-group" style="margin-top:12px;">
+        <label class="form-label">Mode</label>
+        <select class="form-input" id="scanmode-select"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Field / drone image</label>
+        <input class="form-input" type="file" id="scanmode-file" accept="image/*">
+      </div>
+      <button class="btn btn-blue" onclick="runScanMode()"><i class="fa fa-play"></i> Analyze</button>
+      <div id="scanmode-result" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <!-- ── INTERACTIVE FARM MAP ── -->
+  <div class="dcc-subpanel" id="dcc-farmmap">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-map"></i> Interactive Farm Map</div>
+      <div class="card-subtitle">Save the boundary you draw in Mission Planning as a named zone, or import a KML/GeoJSON. Also register no-fly zones for geofence warnings.</div>
+      <div class="form-row" style="margin-top:12px;">
+        <input class="form-input" id="zone-name" placeholder="Zone name (e.g. North Field)">
+        <button class="btn btn-blue" onclick="saveCurrentZone()"><i class="fa fa-save"></i> Save Drawn Boundary as Zone</button>
+      </div>
+      <div class="form-group" style="margin-top:12px;">
+        <label class="form-label">Import KML / GeoJSON (paste text)</label>
+        <textarea class="form-input" id="zone-import-text" rows="3" placeholder="Paste KML or GeoJSON here"></textarea>
+        <div class="form-row" style="margin-top:8px;">
+          <select class="form-input" id="zone-import-format">
+            <option value="geojson">GeoJSON</option>
+            <option value="kml">KML</option>
+          </select>
+          <button class="btn btn-secondary" onclick="importZone()"><i class="fa fa-file-import"></i> Import</button>
+        </div>
+      </div>
+      <div id="zone-list" style="margin-top:16px;">Loading…</div>
+
+      <div class="card-title" style="margin-top:20px;font-size:0.9rem;"><i class="fa fa-ban"></i> No-Fly Zones</div>
+      <div class="form-row" style="margin-top:8px;">
+        <input class="form-input" id="nofly-name" placeholder="No-fly zone name">
+        <input class="form-input" id="nofly-reason" placeholder="Reason (e.g. near school)">
+      </div>
+      <div style="font-size:0.75rem;color:var(--slate-400);margin-top:6px;">Uses the boundary currently drawn on the Mission Planning map.</div>
+      <button class="btn btn-secondary" style="margin-top:8px;" onclick="saveNoFlyZone()"><i class="fa fa-plus"></i> Add No-Fly Zone</button>
+      <div id="nofly-list" style="margin-top:12px;"></div>
+      <button class="btn btn-blue" style="margin-top:10px;" onclick="checkGeofence()"><i class="fa fa-shield-alt"></i> Check Current Mission Against No-Fly Zones</button>
+      <div id="geofence-result" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <!-- ── SENSOR HUB ── -->
+  <div class="dcc-subpanel" id="dcc-sensorhub">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-satellite-dish"></i> Sensor Hub</div>
+      <div class="card-subtitle">RGB camera / soil / weather use real modules where available. Thermal, multispectral, hyperspectral, LiDAR, and gas sensors are simulated — no such IoT hardware is connected in this deployment.</div>
+      <div class="stat-grid" id="sensorhub-grid" style="margin-top:14px;">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ── 3D MAPPING ── -->
+  <div class="dcc-subpanel" id="dcc-mapping3d">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-cube"></i> 3D Mapping</div>
+      <div class="card-subtitle">Draw a field boundary in Mission Planning first. Real DEM/DSM/orthomosaic output needs a photogrammetry pipeline (e.g. OpenDroneMap) — this generates a labeled placeholder summary.</div>
+      <button class="btn btn-blue" style="margin-top:10px;" onclick="run3DMapping()"><i class="fa fa-cube"></i> Generate 3D Summary</button>
+      <div id="mapping3d-result" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <!-- ── SECURITY ── -->
+  <div class="dcc-subpanel" id="dcc-security">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-shield-alt"></i> Drone Security</div>
+      <div class="card-subtitle">No-fly zones and geofence checks are real (see Farm Map tab). Drone authentication, firmware verification, and flight-log encryption need real hardware/keys and aren't implemented in this software-only build.</div>
+      <div class="stat-grid" style="margin-top:14px;">
+        <div class="stat-box"><div class="stat-label">Geofencing</div><div class="stat-value" style="font-size:1rem;color:var(--green-400);">Active (Farm Map tab)</div></div>
+        <div class="stat-box"><div class="stat-label">Drone Authentication</div><div class="stat-value" style="font-size:1rem;color:#fbbf24;">Not implemented</div></div>
+        <div class="stat-box"><div class="stat-label">Flight Log Encryption</div><div class="stat-value" style="font-size:1rem;color:#fbbf24;">Not implemented</div></div>
+        <div class="stat-box"><div class="stat-label">Remote Drone Lock</div><div class="stat-value" style="font-size:1rem;color:var(--green-400);">Simulated via Emergency tab</div></div>
+      </div>
+      <div class="alert alert-info" style="margin-top:14px;">
+        <i class="fa fa-info-circle"></i>
+        <div>To add real app-level login, wrap this Flask app with Flask-Login + a users table, and require auth on all <code>/api/*</code> routes. Ask me to build that next if you want per-user accounts.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── COMPLIANCE ── -->
+  <div class="dcc-subpanel" id="dcc-compliance">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-clipboard-check"></i> Regulatory & Compliance Assistant</div>
+      <div class="card-subtitle">General guidance only, not legal advice — confirm current drone regulations with your local civil aviation authority.</div>
+      <button class="btn btn-blue" style="margin-top:10px;" onclick="loadCompliance()"><i class="fa fa-sync"></i> Generate Report</button>
+      <div id="compliance-result" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <!-- ── AI COLLABORATION MODE ── -->
+  <div class="dcc-subpanel" id="dcc-collaboration">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-users"></i> AI Collaboration Mode</div>
+      <div class="card-subtitle">Generate a role-scoped share link for a mission. This is a shareable token, not a full access-controlled login system.</div>
+      <div class="form-row" style="margin-top:12px;">
+        <input class="form-input" id="share-mission-name" placeholder="Mission name">
+        <select class="form-input" id="share-role">
+          <option value="agronomist">Agronomist</option>
+          <option value="farm_manager">Farm Manager</option>
+          <option value="government_agency">Government Agency</option>
+          <option value="researcher">Researcher</option>
+          <option value="insurance_company">Insurance Company</option>
+        </select>
+      </div>
+      <button class="btn btn-blue" style="margin-top:10px;" onclick="createShare()"><i class="fa fa-share-alt"></i> Create Share Link</button>
+      <div id="share-list" style="margin-top:16px;">Loading…</div>
+    </div>
+  </div>
+
 </div>
 
 <!-- ──────────────── SOIL SENSORS ──────────────── -->
@@ -1142,7 +1458,7 @@ function switchTab(id, el) {
   if(id === 'weather') loadWeather();
   if(id === 'sensors') loadSensors();
   if(id === 'market')  loadSchemes();
-  if(id === 'drone')   initDroneMap();
+  if(id === 'drone')   { loadTelemetry(); if(!dccTelemetryTimer) dccTelemetryTimer = setInterval(loadTelemetry, 5000); }
 }
 
 /* ═══════════════════════════════════════════════
@@ -1976,6 +2292,474 @@ async function findDealers() {
       </a>
       <div style="font-size:0.75rem;color:var(--slate-500);text-align:center;margin-top:4px;">${data.tip}</div>
     </div>`;
+}
+
+/* ═══════════════════════════════════════════════
+   DRONE COMMAND CENTER
+═══════════════════════════════════════════════ */
+let dccTelemetryTimer = null;
+
+function dccSwitch(id, el) {
+  document.querySelectorAll('.dcc-subpanel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.dcc-subtab').forEach(t => t.classList.remove('active'));
+  document.getElementById('dcc-' + id).classList.add('active');
+  el.classList.add('active');
+
+  if (id === 'overview') { loadTelemetry(); if(!dccTelemetryTimer) dccTelemetryTimer = setInterval(loadTelemetry, 5000); }
+  else if (dccTelemetryTimer) { clearInterval(dccTelemetryTimer); dccTelemetryTimer = null; }
+
+  if (id === 'mission') initDroneMap();
+  if (id === 'fleet') loadFleet();
+  if (id === 'emergency') loadEmergency();
+  if (id === 'maintenance') loadMaintenance();
+  if (id === 'scheduler') loadSchedules();
+  if (id === 'analytics') { loadHeatmap(); loadTimeline(); }
+  if (id === 'sustainability') loadSustainability();
+  if (id === 'scanmodes') populateScanModes();
+  if (id === 'farmmap') { loadZones(); loadNoFlyZones(); }
+  if (id === 'sensorhub') loadSensorHub();
+  if (id === 'compliance') loadCompliance();
+  if (id === 'collaboration') loadShares();
+}
+
+function pill(level, text) {
+  const cls = level === 'critical' ? 'crit' : (level === 'warning' ? 'warn' : 'ok');
+  return `<span class="dcc-pill ${cls}">${text}</span>`;
+}
+
+async function loadTelemetry() {
+  const t = await apiFetch('/api/drone/telemetry');
+  if (t.error) { document.getElementById('dcc-telemetry-grid').innerHTML = `<div class="alert alert-info">${t.error}</div>`; return; }
+  document.getElementById('dcc-overview-badge').style.display = t.simulated ? 'inline-block' : 'none';
+  const battClass = t.battery_pct < 20 ? 'crit' : (t.battery_pct < 40 ? 'warn' : '');
+  const boxes = [
+    ['Battery', t.battery_pct + '%', battClass],
+    ['Battery Temp', t.battery_temp_c + '°C', ''],
+    ['Flight Time Left', t.remaining_flight_min + ' min', ''],
+    ['Range Left', t.remaining_range_km + ' km', ''],
+    ['GPS Signal', t.gps_signal, t.gps_signal === 'Weak' ? 'crit' : ''],
+    ['Satellites', t.satellite_count, ''],
+    ['Motor Health', t.motor_health_pct + '%', t.motor_health_pct < 90 ? 'warn' : ''],
+    ['ESC Health', t.esc_health_pct + '%', ''],
+    ['Propeller Health', t.propeller_health_pct + '%', ''],
+    ['Camera', t.camera_health, ''],
+    ['Gimbal', t.gimbal_status, ''],
+    ['Speed', t.current_speed_ms + ' m/s', ''],
+    ['Altitude', t.current_altitude_m + ' m', ''],
+    ['Storage Free', t.storage_free_pct + '%', ''],
+    ['Firmware', t.firmware_version, ''],
+    ['Mission', t.current_mission, ''],
+  ];
+  document.getElementById('dcc-telemetry-grid').innerHTML = boxes.map(([label, val, cls]) =>
+    `<div class="stat-box"><div class="stat-label">${label}</div><div class="stat-value ${cls}">${val}</div></div>`
+  ).join('');
+
+  const fs = await apiFetch(`/api/drone/flight-safety?lat=${t.current_location.lat}&lon=${t.current_location.lon}`);
+  if (!fs.error) {
+    document.getElementById('dcc-flight-safety').innerHTML =
+      `${pill(fs.score >= 60 ? 'ok' : 'critical', fs.verdict)} — score ${fs.score}/100, wind ${fs.wind_kmh} km/h, rain ${fs.rain_mm} mm`;
+  }
+}
+
+async function runCopilot() {
+  const command = document.getElementById('copilot-command').value.trim();
+  if (!command) { showToast('Type a mission command first', 'warning'); return; }
+  const body = { command };
+  if (typeof dronePoints !== 'undefined' && dronePoints.length >= 3) {
+    body.field_polygon = dronePoints.map(p => [p[0], p[1]]);
+    body.home_lat = parseFloat(document.getElementById('home-lat').value);
+    body.home_lon = parseFloat(document.getElementById('home-lon').value);
+  }
+  const res = await apiFetch('/api/drone/copilot', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.error) { showToast(res.error, 'error'); return; }
+  document.getElementById('copilot-result').innerHTML = `
+    <div class="alert alert-info"><i class="fa fa-info-circle"></i><div>${res.summary}</div></div>
+    <div style="margin-top:10px;font-size:0.82rem;color:var(--slate-400);">
+      Actions: ${res.actions.join(', ')} · Scan modes: ${res.scan_modes.join(', ')} · Field: ${res.field_name || 'not detected — mention "<name> field"'}
+      · Confidence: ${(res.confidence*100).toFixed(0)}%
+    </div>
+    ${res.generated_mission ? `<div class="alert alert-success" style="margin-top:10px;"><i class="fa fa-check"></i><div>Real mission generated from your drawn field boundary — see Mission Planning tab result, or check the console/network tab for full waypoints.</div></div>`
+      : `<div class="alert alert-warning" style="margin-top:10px;"><i class="fa fa-exclamation-triangle"></i><div>${res.note || 'No field boundary supplied — draw one in Mission Planning to get real waypoints.'}</div></div>`}
+  `;
+}
+
+async function loadFleet() {
+  const data = await apiFetch('/api/drone/fleet');
+  const drones = data.drones || [];
+  document.getElementById('fleet-list').innerHTML = drones.map(d => `
+    <div class="dcc-list-item">
+      <div>
+        <strong>${d.name}</strong> <span class="dcc-sim-badge" style="${d.is_real ? 'display:none;' : ''}">SIM</span><br>
+        <span style="color:var(--slate-400);font-size:0.75rem;">${d.model} · ${d.zone_name || 'unassigned zone'} · ${d.battery_pct}% battery</span>
+      </div>
+      <div>${pill(d.status === 'ERROR' ? 'critical' : (d.status === 'IDLE' ? 'ok' : 'warning'), d.status)}</div>
+    </div>
+  `).join('') || '<div style="color:var(--slate-400);">No drones yet.</div>';
+}
+
+async function addFleetDrone() {
+  const name = document.getElementById('fleet-name').value.trim() || 'CropGuard Drone';
+  const zone_name = document.getElementById('fleet-zone').value.trim();
+  await apiFetch('/api/drone/fleet', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, zone_name }) });
+  document.getElementById('fleet-name').value = ''; document.getElementById('fleet-zone').value = '';
+  showToast('Drone added');
+  loadFleet();
+}
+
+async function loadEmergency() {
+  const data = await apiFetch('/api/drone/emergency');
+  if (data.error) { document.getElementById('emergency-alerts').innerHTML = data.error; return; }
+  if (!data.alerts.length) {
+    document.getElementById('emergency-alerts').innerHTML = `<div class="alert alert-success"><i class="fa fa-check"></i><div>No active alerts — all systems nominal.</div></div>`;
+  } else {
+    document.getElementById('emergency-alerts').innerHTML = data.alerts.map(a =>
+      `<div class="alert alert-${a.level === 'critical' ? 'danger' : 'warning'}"><i class="fa fa-exclamation-triangle"></i><div>${pill(a.level, a.code)} ${a.message}</div></div>`
+    ).join('');
+  }
+}
+
+async function emergencyAction(action) {
+  const res = await apiFetch('/api/drone/emergency', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action }) });
+  if (res.error) { showToast(res.error, 'error'); return; }
+  document.getElementById('emergency-action-result').innerHTML =
+    `<div class="alert alert-info"><i class="fa fa-info-circle"></i><div>${res.drone_id}: status set to <strong>${res.new_status}</strong> ${res.simulated ? '(simulated)' : ''}</div></div>`;
+  showToast(`Command sent: ${action}`);
+  loadEmergency();
+}
+
+async function loadMaintenance() {
+  const data = await apiFetch('/api/drone/maintenance');
+  const logs = data.logs || [];
+  document.getElementById('maintenance-list').innerHTML = logs.map(l => `
+    <div class="dcc-list-item">
+      <div><strong>${l.item}</strong> — ${l.action || ''}<br><span style="color:var(--slate-400);font-size:0.75rem;">${new Date(l.logged_at).toLocaleString()}</span></div>
+      <div>${pill(l.completed ? 'ok' : 'warning', l.completed ? 'Done' : 'Pending')}
+        ${!l.completed ? `<button class="btn btn-secondary" style="padding:4px 10px;font-size:0.7rem;margin-left:6px;" onclick="completeMaintenance(${l.id})">Mark done</button>` : ''}
+      </div>
+    </div>
+  `).join('') || '<div style="color:var(--slate-400);">No maintenance logs yet.</div>';
+}
+
+async function addMaintenance() {
+  const item = document.getElementById('maint-item').value.trim();
+  const action = document.getElementById('maint-action').value.trim();
+  if (!item) { showToast('Enter an item', 'warning'); return; }
+  await apiFetch('/api/drone/maintenance', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ item, action }) });
+  document.getElementById('maint-item').value = ''; document.getElementById('maint-action').value = '';
+  loadMaintenance();
+}
+
+async function completeMaintenance(id) {
+  await apiFetch(`/api/drone/maintenance/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ completed: true }) });
+  loadMaintenance();
+}
+
+async function loadSchedules() {
+  const data = await apiFetch('/api/drone/schedule');
+  const scheds = data.schedules || [];
+  document.getElementById('schedule-list').innerHTML = scheds.map(s => `
+    <div class="dcc-list-item">
+      <div><strong>${s.name}</strong> — ${s.mission_type}, ${s.recurrence}<br><span style="color:var(--slate-400);font-size:0.75rem;">Next run: ${s.next_run ? new Date(s.next_run).toLocaleString() : '—'}</span></div>
+      <div>${pill(s.active ? 'ok' : 'warning', s.active ? 'Active' : 'Paused')}</div>
+    </div>
+  `).join('') || '<div style="color:var(--slate-400);">No schedules yet.</div>';
+}
+
+async function addSchedule() {
+  const name = document.getElementById('sched-name').value.trim();
+  const recurrence = document.getElementById('sched-recurrence').value;
+  if (!name) { showToast('Enter a mission name', 'warning'); return; }
+  await apiFetch('/api/drone/schedule', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, recurrence }) });
+  document.getElementById('sched-name').value = '';
+  loadSchedules();
+}
+
+async function loadHeatmap() {
+  const data = await apiFetch('/api/drone/analytics/heatmap');
+  if (data.error) { document.getElementById('analytics-heatmap').innerHTML = data.error; return; }
+  if (!data.cells.length) { document.getElementById('analytics-heatmap').innerHTML = '<div style="color:var(--slate-400);">No GPS-tagged scans yet — heatmap needs location data from scans.</div>'; return; }
+  document.getElementById('analytics-heatmap').innerHTML = data.cells.slice(0, 20).map(c => `
+    <div class="dcc-list-item">
+      <div>${c.lat}, ${c.lon}</div>
+      <div>${pill(c.high_severity > 0 ? 'critical' : 'ok', c.count + ' scans, ' + c.high_severity + ' high-sev')}</div>
+    </div>
+  `).join('');
+}
+
+async function loadTimeline() {
+  const data = await apiFetch('/api/drone/analytics/timeline');
+  if (data.error) { document.getElementById('analytics-timeline').innerHTML = data.error; return; }
+  if (!data.timeline.length) { document.getElementById('analytics-timeline').innerHTML = '<div style="color:var(--slate-400);">No scan history yet.</div>'; return; }
+  document.getElementById('analytics-timeline').innerHTML = data.timeline.map(d => `
+    <div class="dcc-list-item">
+      <div>${d.date} — ${d.crops.join(', ')}</div>
+      <div>${pill(d.high_severity > 0 ? 'warning' : 'ok', d.scans + ' scans')}</div>
+    </div>
+  `).join('');
+}
+
+async function loadSustainability() {
+  const data = await apiFetch('/api/drone/sustainability');
+  if (data.error) { document.getElementById('sustainability-grid').innerHTML = data.error; return; }
+  document.getElementById('sustainability-basis').textContent = data.basis;
+  const boxes = [
+    ['Total Area Planned', data.total_area_ha + ' ha'],
+    ['Targeted Fraction', data.targeted_fraction_pct + '%'],
+    ['Chemical Used', data.chemical_used_l + ' L'],
+    ['Chemical Saved vs Blanket', data.chemical_saved_vs_blanket_l + ' L'],
+    ['Water Saved (est.)', data.water_saved_l + ' L'],
+    ['Sustainability Score', data.sustainability_score + '/100'],
+  ];
+  document.getElementById('sustainability-grid').innerHTML = boxes.map(([label, val]) =>
+    `<div class="stat-box"><div class="stat-label">${label}</div><div class="stat-value">${val}</div></div>`
+  ).join('');
+}
+
+/* ═══════════════════════════════════════════════
+   AI SCAN MODES
+═══════════════════════════════════════════════ */
+const SCAN_MODES = [
+  ['disease', 'Disease (real model)'], ['pest', 'Pest (real model)'], ['weed', 'Weed (real model)'],
+  ['ndvi', 'NDVI / Vigor (real calc)'],
+  ['nutrient', 'Nutrient Deficiency (heuristic)'], ['water_stress', 'Water Stress (heuristic)'],
+  ['soil_moisture', 'Soil Moisture (heuristic)'], ['growth_stage', 'Growth Stage (heuristic)'],
+  ['fruit_counting', 'Fruit Counting (heuristic)'], ['flower_counting', 'Flower Counting (heuristic)'],
+  ['plant_counting', 'Plant Counting (heuristic)'], ['crop_density', 'Crop Density (heuristic)'],
+  ['harvest_readiness', 'Harvest Readiness (heuristic)'],
+];
+
+function populateScanModes() {
+  const sel = document.getElementById('scanmode-select');
+  if (sel.options.length) return;
+  sel.innerHTML = SCAN_MODES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+}
+
+async function runScanMode() {
+  const mode = document.getElementById('scanmode-select').value;
+  const fileInput = document.getElementById('scanmode-file');
+  if (!fileInput.files.length) { showToast('Choose an image first', 'warning'); return; }
+  const fd = new FormData();
+  fd.append('image', fileInput.files[0]);
+  fd.append('mode', mode);
+  document.getElementById('scanmode-result').innerHTML = `<div class="loading-state"><div class="spinner"></div><p>Analyzing...</p></div>`;
+  const res = await fetch(API + '/api/drone/scan-mode', { method: 'POST', body: fd });
+  const data = await res.json();
+  if (data.error) { document.getElementById('scanmode-result').innerHTML = `<div class="alert alert-danger">${data.error}</div>`; return; }
+  const badge = data.heuristic_estimate ? `<span class="dcc-sim-badge">HEURISTIC</span>` : '';
+  document.getElementById('scanmode-result').innerHTML = `
+    <div class="alert alert-info">${badge} <pre style="white-space:pre-wrap;font-size:0.78rem;margin-top:8px;">${JSON.stringify(data, null, 2)}</pre></div>`;
+}
+
+/* ═══════════════════════════════════════════════
+   SMART SPRAYING
+═══════════════════════════════════════════════ */
+async function calcSprayDose() {
+  const severity = document.getElementById('spray-severity').value;
+  const disease_name = document.getElementById('spray-disease').value.trim() || 'unknown';
+  const data = await apiFetch('/api/drone/spray/dose', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ severity, disease_name }) });
+  if (data.error) { document.getElementById('spray-result').innerHTML = `<div class="alert alert-danger">${data.error}</div>`; return; }
+  document.getElementById('spray-result').innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-box"><div class="stat-label">Spray Duration</div><div class="stat-value">${data.spray_duration_s ?? data.duration_s ?? '—'}s</div></div>
+      <div class="stat-box"><div class="stat-label">Dose Note</div><div class="stat-value" style="font-size:0.95rem;">${data.concentration_note ?? data.conc_note ?? '—'}</div></div>
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════
+   INTERACTIVE FARM MAP + GEOFENCE
+═══════════════════════════════════════════════ */
+async function saveCurrentZone() {
+  const name = document.getElementById('zone-name').value.trim();
+  if (!name) { showToast('Enter a zone name', 'warning'); return; }
+  if (typeof dronePoints === 'undefined' || dronePoints.length < 3) { showToast('Draw a boundary (3+ points) in Mission Planning first', 'warning'); return; }
+  const fieldsData = await apiFetch('/api/fields', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, area_acres: 0 }) });
+  const fieldId = fieldsData.id;
+  if (!fieldId) { showToast('Could not create field', 'error'); return; }
+  await apiFetch(`/api/drone/fields/${fieldId}/boundary`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ boundary: dronePoints }) });
+  document.getElementById('zone-name').value = '';
+  showToast('Zone saved');
+  loadZones();
+}
+
+async function loadZones() {
+  const data = await apiFetch('/api/fields');
+  const fields = data.fields || data || [];
+  document.getElementById('zone-list').innerHTML = (Array.isArray(fields) ? fields : []).map(f => `
+    <div class="dcc-list-item">
+      <div>${f.name}</div>
+      <div>${f.boundary ? pill('ok', f.boundary.length + ' pts') : pill('warning', 'no boundary')}</div>
+    </div>
+  `).join('') || '<div style="color:var(--slate-400);">No zones saved yet.</div>';
+}
+
+async function importZone() {
+  const text = document.getElementById('zone-import-text').value.trim();
+  const format = document.getElementById('zone-import-format').value;
+  if (!text) { showToast('Paste KML or GeoJSON first', 'warning'); return; }
+  let data;
+  if (format === 'geojson') {
+    let parsed;
+    try { parsed = JSON.parse(text); } catch(e) { showToast('Invalid GeoJSON', 'error'); return; }
+    data = await apiFetch('/api/drone/import/geojson', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(parsed) });
+  } else {
+    const blob = new Blob([text], { type: 'text/plain' });
+    const fd = new FormData();
+    fd.append('file', blob, 'import.kml');
+    const res = await fetch(API + '/api/drone/import/kml', { method: 'POST', body: fd });
+    data = await res.json();
+  }
+  if (data.error) { showToast(data.error, 'error'); return; }
+  showToast(`Imported ${data.point_count} points — drawing on Mission Planning map`);
+  if (typeof dronePoints !== 'undefined' && droneMap) {
+    clearMission();
+    data.boundary.forEach(([lat, lng]) => {
+      dronePoints.push([lat, lng]);
+      const m = L.circleMarker([lat,lng], {color:'#3b82f6',fillColor:'#60a5fa',fillOpacity:1,radius:7}).addTo(droneMap);
+      droneMarkers.push(m);
+    });
+    if (dronePoints.length >= 2) droneLine = L.polygon(dronePoints, {color:'#10b981',fillColor:'#10b981',fillOpacity:0.1,dashArray:'6,4'}).addTo(droneMap);
+    updateDronePointsList();
+  }
+}
+
+async function saveNoFlyZone() {
+  const name = document.getElementById('nofly-name').value.trim();
+  if (!name) { showToast('Enter a no-fly zone name', 'warning'); return; }
+  if (typeof dronePoints === 'undefined' || dronePoints.length < 3) { showToast('Draw a boundary (3+ points) in Mission Planning first', 'warning'); return; }
+  await apiFetch('/api/drone/geofence', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, polygon: dronePoints }) });
+  document.getElementById('nofly-name').value = '';
+  showToast('No-fly zone added');
+  loadNoFlyZones();
+}
+
+async function loadNoFlyZones() {
+  const data = await apiFetch('/api/drone/geofence');
+  const zones = data.zones || [];
+  document.getElementById('nofly-list').innerHTML = zones.map(z => `
+    <div class="dcc-list-item">
+      <div>${z.name}</div>
+      <div><button class="btn btn-secondary" style="padding:4px 10px;font-size:0.7rem;" onclick="deleteNoFly(${z.id})">Remove</button></div>
+    </div>
+  `).join('') || '<div style="color:var(--slate-400);font-size:0.8rem;">No no-fly zones defined.</div>';
+}
+
+async function deleteNoFly(id) {
+  await apiFetch(`/api/drone/geofence/${id}`, { method: 'DELETE' });
+  loadNoFlyZones();
+}
+
+async function checkGeofence() {
+  if (typeof dronePoints === 'undefined' || !dronePoints.length) { showToast('Draw a point/boundary in Mission Planning first', 'warning'); return; }
+  const [lat, lon] = dronePoints[0];
+  const data = await apiFetch('/api/drone/geofence', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ check_lat: lat, check_lon: lon }) });
+  document.getElementById('geofence-result').innerHTML = data.in_no_fly_zone
+    ? `<div class="alert alert-danger"><i class="fa fa-ban"></i><div>Inside no-fly zone(s): ${data.zones.join(', ')}</div></div>`
+    : `<div class="alert alert-success"><i class="fa fa-check"></i><div>Clear of all defined no-fly zones.</div></div>`;
+}
+
+/* ═══════════════════════════════════════════════
+   SENSOR HUB
+═══════════════════════════════════════════════ */
+async function loadSensorHub() {
+  const data = await apiFetch('/api/drone/sensor-hub');
+  if (data.error) { document.getElementById('sensorhub-grid').innerHTML = data.error; return; }
+  const boxes = [
+    ['Humidity', data.humidity_pct + '%'], ['Weather Temp', data.weather_temp_c + '°C'],
+    ['Rain Today', data.rain_mm_today + ' mm'], ['Wind', data.wind_kmh + ' km/h'],
+    ['Sunlight', data.sunlight_lux + ' lux'], ['CO₂', data.co2_ppm + ' ppm'],
+    ['Methane', data.methane_ppm + ' ppm'], ['Air Quality', data.air_quality_index],
+    ['UV Index', data.uv_index],
+  ];
+  document.getElementById('sensorhub-grid').innerHTML = boxes.map(([l,v]) =>
+    `<div class="stat-box"><div class="stat-label">${l}</div><div class="stat-value">${v}</div></div>`
+  ).join('') + (data.soil ? `<div class="stat-box"><div class="stat-label">Soil (real)</div><div class="stat-value" style="font-size:0.85rem;">${JSON.stringify(data.soil)}</div></div>` : '');
+}
+
+/* ═══════════════════════════════════════════════
+   3D MAPPING
+═══════════════════════════════════════════════ */
+async function run3DMapping() {
+  const polygon = (typeof dronePoints !== 'undefined' && dronePoints.length >= 3) ? dronePoints : null;
+  const data = await apiFetch('/api/drone/mapping', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ field_polygon: polygon }) });
+  document.getElementById('mapping3d-result').innerHTML = `
+    <div class="alert alert-info"><i class="fa fa-info-circle"></i><div>${data.note}</div></div>
+    <div class="stat-grid" style="margin-top:10px;">
+      <div class="stat-box"><div class="stat-label">Status</div><div class="stat-value" style="font-size:1rem;">${data.status}</div></div>
+      <div class="stat-box"><div class="stat-label">Photos Needed (est.)</div><div class="stat-value">${data.estimated_photos_needed}</div></div>
+      <div class="stat-box"><div class="stat-label">Suggested Pipeline</div><div class="stat-value" style="font-size:0.85rem;">${data.suggested_pipeline}</div></div>
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════
+   VOICE CONTROL (Web Speech API — real, browser-native)
+═══════════════════════════════════════════════ */
+function startVoiceCommand() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) { showToast('Voice recognition not supported in this browser — try Chrome or Edge', 'error'); return; }
+  const rec = new SpeechRec();
+  rec.lang = 'en-US';
+  rec.onstart = () => showToast('Listening...', 'info');
+  rec.onresult = (e) => {
+    const text = e.results[0][0].transcript;
+    document.getElementById('copilot-command').value = text;
+    showToast('Heard: ' + text);
+  };
+  rec.onerror = (e) => showToast('Voice recognition error: ' + e.error, 'error');
+  rec.start();
+}
+
+/* ═══════════════════════════════════════════════
+   REGULATORY / COMPLIANCE
+═══════════════════════════════════════════════ */
+async function loadCompliance() {
+  const data = await apiFetch('/api/drone/compliance-report');
+  if (data.error) { document.getElementById('compliance-result').innerHTML = data.error; return; }
+  document.getElementById('compliance-result').innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-box"><div class="stat-label">Drones</div><div class="stat-value">${data.fleet_summary.drone_count}</div></div>
+      <div class="stat-box"><div class="stat-label">Total Flights</div><div class="stat-value">${data.fleet_summary.total_flights}</div></div>
+      <div class="stat-box"><div class="stat-label">Flight Hours</div><div class="stat-value">${data.fleet_summary.total_flight_hours}</div></div>
+      <div class="stat-box"><div class="stat-label">Pending Maintenance</div><div class="stat-value ${data.maintenance_summary.pending_items.length ? 'warn' : ''}">${data.maintenance_summary.pending_items.length}</div></div>
+      <div class="stat-box"><div class="stat-label">Scans Logged</div><div class="stat-value">${data.mission_activity.total_scans_logged}</div></div>
+      <div class="stat-box"><div class="stat-label">Active Schedules</div><div class="stat-value">${data.mission_activity.active_schedules}</div></div>
+    </div>
+    <div class="alert alert-info" style="margin-top:14px;">
+      <i class="fa fa-list-check"></i>
+      <div><strong>Operator checklist:</strong><ul style="margin:6px 0 0 18px;">${data.operator_checklist.map(c=>`<li>${c}</li>`).join('')}</ul></div>
+    </div>
+    <div style="font-size:0.72rem;color:var(--slate-500);margin-top:8px;">${data.note}</div>
+    <button class="btn btn-secondary" style="margin-top:10px;" onclick='downloadJSON(${JSON.stringify(JSON.stringify(data))}, "compliance-report.json")'><i class="fa fa-download"></i> Export JSON</button>
+  `;
+}
+
+function downloadJSON(jsonString, filename) {
+  const blob = new Blob([jsonString], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ═══════════════════════════════════════════════
+   AI COLLABORATION MODE
+═══════════════════════════════════════════════ */
+async function createShare() {
+  const role = document.getElementById('share-role').value;
+  const data = await apiFetch('/api/drone/collaboration/share', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ role }) });
+  if (data.error) { showToast(data.error, 'error'); return; }
+  showToast('Share link created');
+  loadShares();
+}
+
+async function loadShares() {
+  const data = await apiFetch('/api/drone/collaboration/share');
+  const shares = data.shares || [];
+  document.getElementById('share-list').innerHTML = shares.map(s => `
+    <div class="dcc-list-item">
+      <div style="font-size:0.75rem;word-break:break-all;">${s.role} — <code>${s.token}</code></div>
+      <div>${pill('ok', new Date(s.created_at).toLocaleDateString())}</div>
+    </div>
+  `).join('') || '<div style="color:var(--slate-400);">No share links yet.</div>';
 }
 
 /* ═══════════════════════════════════════════════

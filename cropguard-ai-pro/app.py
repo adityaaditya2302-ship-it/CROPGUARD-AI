@@ -24,7 +24,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from config import config
-from models import db, ScanHistory, DronePlan, UserProfile, FarmField, FarmingTask, DroneDevice
+from models import db, ScanHistory, DronePlan, UserProfile, FarmField, FarmingTask, DroneDevice, \
+    FleetDrone, MaintenanceLog, MissionSchedule, NoFlyZone, MissionShare, FarmZone, NoFlyZone, MissionShare
 from disease_database import CROP_DISEASE_DB, MARKET_DATA, MANDI_PREMIUMS, CROP_ICONS, CROP_NAMES
 from yolo_detector import get_detector
 from image_utils import normalize_image_bytes, normalize_uploaded_file, ImageDecodeError
@@ -66,6 +67,17 @@ try:
     from modules.sensors.soil_sensor import get_soil_hub
 except ImportError:
     get_soil_hub = None
+
+# ── Drone Command Center: telemetry sim, emergency, copilot, analytics ──────
+try:
+    from modules.drone import command_center as dcc
+except ImportError:
+    dcc = None
+
+try:
+    from modules.drone import command_center_ext as dcx
+except ImportError:
+    dcx = None
 
 try:
     from modules.sensors.ndvi_calculator import calculate_ndvi
@@ -1481,6 +1493,657 @@ def market_prices():
 # ======================================================================
 # ENHANCED HEALTH CHECK (shows all module status)
 # ======================================================================
+
+
+# ======================================================================
+# DRONE COMMAND CENTER
+# ======================================================================
+
+def _get_or_create_default_drone():
+    d = FleetDrone.query.first()
+    if not d:
+        d = FleetDrone(drone_id='drone-1', name='CropGuard Drone 1', model='Generic Quadcopter',
+                        status='IDLE', battery_pct=100.0, home_lat=20.5937, home_lon=78.9629)
+        db.session.add(d)
+        db.session.commit()
+    return d
+
+
+@app.route('/api/drone/fleet', methods=['GET', 'POST'])
+def drone_fleet():
+    """Fleet Management: list drones, or register a new one.
+    A drone with no connection_string is simulated; set one (e.g.
+    udp://:14540) to route it through the real MAVLink bridge later."""
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        d = FleetDrone(
+            drone_id=data.get('drone_id') or f"drone-{FleetDrone.query.count() + 1}",
+            name=data.get('name', 'CropGuard Drone'),
+            model=data.get('model', 'Generic Quadcopter'),
+            connection_string=data.get('connection_string'),
+            zone_name=data.get('zone_name'),
+            home_lat=data.get('home_lat', 20.5937),
+            home_lon=data.get('home_lon', 78.9629),
+        )
+        db.session.add(d)
+        db.session.commit()
+        return jsonify(d.to_dict()), 201
+
+    drones = FleetDrone.query.all()
+    if not drones:
+        _get_or_create_default_drone()
+        drones = FleetDrone.query.all()
+    return jsonify({'drones': [d.to_dict() for d in drones]})
+
+
+@app.route('/api/drone/fleet/<int:drone_pk>', methods=['PATCH', 'DELETE'])
+def drone_fleet_item(drone_pk):
+    d = FleetDrone.query.get_or_404(drone_pk)
+    if request.method == 'DELETE':
+        db.session.delete(d)
+        db.session.commit()
+        return jsonify({'deleted': True})
+
+    data = request.get_json(silent=True) or {}
+    for field in ('name', 'model', 'zone_name', 'status', 'connection_string'):
+        if field in data:
+            setattr(d, field, data[field])
+    if 'battery_pct' in data:
+        d.battery_pct = float(data['battery_pct'])
+    db.session.commit()
+    return jsonify(d.to_dict())
+
+
+@app.route('/api/drone/telemetry', methods=['GET'])
+def drone_telemetry():
+    """Drone Health Dashboard: simulated live parameters for a drone
+    (real telemetry requires a connected MAVLink drone — not available here)."""
+    if dcc is None:
+        return jsonify({'error': 'Command center module unavailable'}), 503
+    drone_id = request.args.get('drone_id')
+    d = FleetDrone.query.filter_by(drone_id=drone_id).first() if drone_id else _get_or_create_default_drone()
+    if not d:
+        return jsonify({'error': 'drone not found'}), 404
+    return jsonify(dcc.simulate_telemetry(d))
+
+
+@app.route('/api/drone/emergency', methods=['GET', 'POST'])
+def drone_emergency():
+    """Emergency System: GET returns current alerts derived from telemetry;
+    POST with {"drone_id":..., "action": "return_home"|"emergency_land"|
+    "stop_spraying"|"stop_mission"} simulates issuing that command."""
+    if dcc is None:
+        return jsonify({'error': 'Command center module unavailable'}), 503
+
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        d = FleetDrone.query.filter_by(drone_id=data.get('drone_id')).first() or _get_or_create_default_drone()
+        action = data.get('action')
+        new_status = dcc.EMERGENCY_ACTIONS.get(action)
+        if not new_status:
+            return jsonify({'error': f'unknown action {action}'}), 400
+        d.status = new_status
+        db.session.commit()
+        return jsonify({'drone_id': d.drone_id, 'action': action, 'new_status': new_status, 'simulated': not bool(d.connection_string)})
+
+    drone_id = request.args.get('drone_id')
+    d = FleetDrone.query.filter_by(drone_id=drone_id).first() if drone_id else _get_or_create_default_drone()
+    telemetry = dcc.simulate_telemetry(d)
+    alerts = dcc.evaluate_emergency(telemetry)
+    return jsonify({'drone_id': d.drone_id, 'alerts': alerts, 'telemetry': telemetry})
+
+
+@app.route('/api/drone/maintenance', methods=['GET', 'POST'])
+def drone_maintenance():
+    """Maintenance tracker: propeller/battery/camera/firmware reminders."""
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        log = MaintenanceLog(
+            drone_id=data.get('drone_id', 'drone-1'),
+            item=data.get('item', 'General'),
+            action=data.get('action'),
+            due_flight_hours=data.get('due_flight_hours'),
+            notes=data.get('notes'),
+        )
+        db.session.add(log)
+        db.session.commit()
+        return jsonify(log.to_dict()), 201
+
+    drone_id = request.args.get('drone_id')
+    q = MaintenanceLog.query
+    if drone_id:
+        q = q.filter_by(drone_id=drone_id)
+    logs = q.order_by(MaintenanceLog.logged_at.desc()).all()
+    return jsonify({'logs': [l.to_dict() for l in logs]})
+
+
+@app.route('/api/drone/maintenance/<int:log_id>', methods=['PATCH', 'DELETE'])
+def drone_maintenance_item(log_id):
+    log = MaintenanceLog.query.get_or_404(log_id)
+    if request.method == 'DELETE':
+        db.session.delete(log)
+        db.session.commit()
+        return jsonify({'deleted': True})
+    data = request.get_json(silent=True) or {}
+    if 'completed' in data:
+        log.completed = bool(data['completed'])
+    db.session.commit()
+    return jsonify(log.to_dict())
+
+
+@app.route('/api/drone/schedule', methods=['GET', 'POST'])
+def drone_schedule():
+    """Mission Scheduler: every morning / weekly / before rain, etc."""
+    if dcc is None:
+        return jsonify({'error': 'Command center module unavailable'}), 503
+
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        recurrence = data.get('recurrence', 'once')
+        sched = MissionSchedule(
+            name=data.get('name', 'Scheduled Mission'),
+            mission_type=data.get('mission_type', 'scan'),
+            field_name=data.get('field_name'),
+            recurrence=recurrence,
+            next_run=dcc.compute_next_run(recurrence),
+        )
+        db.session.add(sched)
+        db.session.commit()
+        return jsonify(sched.to_dict()), 201
+
+    scheds = MissionSchedule.query.order_by(MissionSchedule.next_run.asc()).all()
+    return jsonify({'schedules': [s.to_dict() for s in scheds]})
+
+
+@app.route('/api/drone/schedule/<int:sched_id>', methods=['PATCH', 'DELETE'])
+def drone_schedule_item(sched_id):
+    sched = MissionSchedule.query.get_or_404(sched_id)
+    if request.method == 'DELETE':
+        db.session.delete(sched)
+        db.session.commit()
+        return jsonify({'deleted': True})
+    data = request.get_json(silent=True) or {}
+    if 'active' in data:
+        sched.active = bool(data['active'])
+    db.session.commit()
+    return jsonify(sched.to_dict())
+
+
+@app.route('/api/drone/copilot', methods=['POST'])
+def drone_copilot():
+    """AI Mission Copilot: parse a free-text command into a structured
+    mission plan, then (if a field polygon is also supplied) run it
+    through the real MissionPlanner to generate actual waypoints."""
+    if dcc is None:
+        return jsonify({'error': 'Command center module unavailable'}), 503
+
+    data = request.get_json(silent=True) or {}
+    text = data.get('command', '')
+    if not text.strip():
+        return jsonify({'error': 'command text required'}), 400
+
+    parsed = dcc.parse_mission_command(text)
+
+    polygon = data.get('field_polygon')
+    if polygon and len(polygon) >= 3 and get_mission_planner:
+        poly_tuples = [(p[0], p[1]) for p in polygon]
+        planner = get_mission_planner()
+        if 'spray' in parsed['actions']:
+            coords = data.get('disease_coordinates', [])
+            mission = planner.plan_spray_mission(
+                disease_coordinates=coords,
+                home_lat=data.get('home_lat', poly_tuples[0][0]),
+                home_lon=data.get('home_lon', poly_tuples[0][1]),
+            ) if coords else None
+        else:
+            mission = planner.plan_scan_mission(
+                field_polygon=poly_tuples,
+                home_lat=data.get('home_lat', poly_tuples[0][0]),
+                home_lon=data.get('home_lon', poly_tuples[0][1]),
+            )
+        parsed['generated_mission'] = mission
+    else:
+        parsed['generated_mission'] = None
+        parsed['note'] = 'Provide field_polygon (and disease_coordinates for spray) to auto-generate real waypoints.'
+
+    return jsonify(parsed)
+
+
+@app.route('/api/drone/analytics/heatmap', methods=['GET'])
+def drone_analytics_heatmap():
+    """Analytics: disease/pest heatmap grid built from real scan history."""
+    if dcc is None:
+        return jsonify({'error': 'Command center module unavailable'}), 503
+    scans = ScanHistory.query.filter(ScanHistory.latitude.isnot(None)).all()
+    return jsonify({'cells': dcc.build_heatmap(scans), 'total_scans_with_location': len(scans)})
+
+
+@app.route('/api/drone/analytics/timeline', methods=['GET'])
+def drone_analytics_timeline():
+    """Historical Timeline: scans grouped by day for a growth/disease
+    time-lapse view."""
+    if dcc is None:
+        return jsonify({'error': 'Command center module unavailable'}), 503
+    scans = ScanHistory.query.order_by(ScanHistory.timestamp.asc()).all()
+    return jsonify({'timeline': dcc.build_timeline(scans)})
+
+
+@app.route('/api/drone/sustainability', methods=['GET'])
+def drone_sustainability():
+    """Sustainability Dashboard: estimated water/chemical savings from
+    precision spraying vs. a blanket-spray baseline (assumption-based —
+    see 'basis' field in the response)."""
+    if dcc is None:
+        return jsonify({'error': 'Command center module unavailable'}), 503
+    plans = DronePlan.query.all()
+    scans = ScanHistory.query.all()
+    return jsonify(dcc.estimate_sustainability(plans, scans))
+
+
+@app.route('/api/drone/flight-safety', methods=['GET'])
+def drone_flight_safety():
+    """Weather Intelligence: flight safety score derived from current
+    weather at the given lat/lon."""
+    if dcc is None or get_weather_intelligence is None:
+        return jsonify({'error': 'Weather/command center module unavailable'}), 503
+    lat = request.args.get('lat', 20.5937, type=float)
+    lon = request.args.get('lon', 78.9629, type=float)
+    wx_engine = get_weather_intelligence()
+    wx = wx_engine.get_current_weather(lat, lon) if hasattr(wx_engine, 'get_current_weather') else {}
+    return jsonify(dcc.flight_safety_score(wx if isinstance(wx, dict) else {}))
+
+
+
+# ======================================================================
+# DRONE COMMAND CENTER — EXTENSION PACK
+# (AI Scan Modes, Interactive Farm Map, Sensor Hub, 3D Mapping,
+#  Compliance Assistant, AI Collaboration Mode)
+# ======================================================================
+
+@app.route('/api/drone/scan-modes', methods=['GET'])
+def list_scan_modes():
+    if dcx is None:
+        return jsonify({'error': 'Extension module unavailable'}), 503
+    return jsonify({'modes': dcx.SCAN_MODES})
+
+
+@app.route('/api/drone/scan-modes/analyze', methods=['POST'])
+def analyze_scan_mode_route():
+    """Multi-mode field analysis. Disease/pest/weed route through the real
+    trained models you already have; every other mode uses a labeled
+    image-statistics heuristic (see 'heuristic': true in the response)."""
+    if dcx is None:
+        return jsonify({'error': 'Extension module unavailable'}), 503
+    if 'image' not in request.files:
+        return jsonify({'error': 'image file required'}), 400
+    mode = request.form.get('mode', 'disease')
+    image_bytes = request.files['image'].read()
+
+    if mode == 'disease':
+        return jsonify({'mode': 'disease', 'redirect': '/api/scan', 'note': 'Use /api/scan (multipart image) for the real trained disease detector.'})
+    if mode == 'weed':
+        return jsonify({'mode': 'weed', 'redirect': '/api/detect/weeds', 'note': 'Use /api/detect/weeds for the real weed detector.'})
+    if mode == 'pest':
+        return jsonify({'mode': 'pest', 'redirect': '/api/detect/pests', 'note': 'Use /api/detect/pests for the real pest detector.'})
+
+    if mode not in dcx.SCAN_MODES:
+        return jsonify({'error': f'unknown mode {mode}'}), 400
+    return jsonify(dcx.analyze_scan_mode(mode, image_bytes))
+
+
+@app.route('/api/drone/zones', methods=['GET', 'POST'])
+def drone_zones():
+    """Interactive Farm Map: named zones/boundaries, drawn or imported."""
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        zone = FarmZone(
+            name=data.get('name', 'Zone'),
+            zone_type=data.get('zone_type', 'field'),
+            boundary_points=json.dumps(data.get('boundary_points', [])),
+            source=data.get('source', 'drawn'),
+        )
+        db.session.add(zone)
+        db.session.commit()
+        return jsonify(zone.to_dict()), 201
+    return jsonify({'zones': [z.to_dict() for z in FarmZone.query.all()]})
+
+
+@app.route('/api/drone/zones/<int:zone_id>', methods=['DELETE'])
+def drone_zone_delete(zone_id):
+    zone = FarmZone.query.get_or_404(zone_id)
+    db.session.delete(zone)
+    db.session.commit()
+    return jsonify({'deleted': True})
+
+
+@app.route('/api/drone/zones/import', methods=['POST'])
+def drone_zones_import():
+    """Import zone boundaries from pasted KML or GeoJSON text."""
+    if dcx is None:
+        return jsonify({'error': 'Extension module unavailable'}), 503
+    data = request.get_json(silent=True) or {}
+    text = data.get('text', '')
+    fmt = data.get('format', 'geojson')
+    try:
+        polygons = dcx.parse_kml(text) if fmt == 'kml' else dcx.parse_geojson(text)
+    except (ValueError, json.JSONDecodeError) as e:
+        return jsonify({'error': f'Could not parse {fmt}: {e}'}), 400
+
+    created = []
+    for i, poly in enumerate(polygons):
+        zone = FarmZone(name=data.get('name', f'Imported Zone {i+1}'), zone_type='field',
+                         boundary_points=json.dumps(poly), source=fmt)
+        db.session.add(zone)
+        created.append(zone)
+    db.session.commit()
+    return jsonify({'imported': [z.to_dict() for z in created]}), 201
+
+
+@app.route('/api/drone/nofly-zones', methods=['GET', 'POST'])
+def nofly_zones():
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        zone = NoFlyZone(name=data.get('name', 'No-Fly Zone'),
+                          boundary_points=json.dumps(data.get('boundary_points', [])),
+                          reason=data.get('reason'))
+        db.session.add(zone)
+        db.session.commit()
+        return jsonify(zone.to_dict()), 201
+    return jsonify({'zones': [z.to_dict() for z in NoFlyZone.query.all()]})
+
+
+@app.route('/api/drone/nofly-zones/<int:zone_id>', methods=['DELETE'])
+def nofly_zone_delete(zone_id):
+    zone = NoFlyZone.query.get_or_404(zone_id)
+    db.session.delete(zone)
+    db.session.commit()
+    return jsonify({'deleted': True})
+
+
+@app.route('/api/drone/geofence-check', methods=['POST'])
+def geofence_check():
+    """Warn if a planned mission polygon overlaps a registered no-fly zone.
+    Vertex-based check — a helpful warning, not a substitute for verified
+    airspace clearance."""
+    if dcx is None:
+        return jsonify({'error': 'Extension module unavailable'}), 503
+    data = request.get_json(silent=True) or {}
+    polygon = data.get('field_polygon', [])
+    zones = NoFlyZone.query.all()
+    violations = dcx.check_geofence(polygon, zones)
+    return jsonify({'safe': len(violations) == 0, 'violations': violations})
+
+
+@app.route('/api/drone/sensors/hub', methods=['GET'])
+def sensors_hub():
+    """Expanded Sensor Hub: RGB/soil/weather are real where available;
+    thermal/multispectral/hyperspectral/LiDAR/gas sensors are simulated
+    placeholders (see 'simulated': true fields) since no such hardware is
+    connected in this deployment."""
+    if dcx is None:
+        return jsonify({'error': 'Extension module unavailable'}), 503
+    soil_reading = None
+    if get_soil_hub:
+        try:
+            hub = get_soil_hub()
+            soil_reading = hub.get_readings() if hasattr(hub, 'get_readings') else None
+        except Exception:
+            soil_reading = None
+    weather = None
+    if get_weather_intelligence:
+        try:
+            wx = get_weather_intelligence()
+            weather = wx.get_current_weather(20.5937, 78.9629) if hasattr(wx, 'get_current_weather') else None
+        except Exception:
+            weather = None
+    return jsonify(dcx.simulate_sensor_hub(soil_reading, weather))
+
+
+@app.route('/api/drone/mapping/3d', methods=['POST'])
+def mapping_3d():
+    """3D Mapping: DEM/DSM/orthomosaic/point-cloud summary. Real outputs
+    need a photogrammetry pipeline (e.g. OpenDroneMap) processing
+    overlapping images — this returns a labeled placeholder summary."""
+    if dcx is None:
+        return jsonify({'error': 'Extension module unavailable'}), 503
+    data = request.get_json(silent=True) or {}
+    polygon = data.get('field_polygon', [])
+    if len(polygon) < 3:
+        return jsonify({'error': 'field_polygon must have at least 3 points'}), 400
+    return jsonify(dcx.simulate_3d_mapping(polygon))
+
+
+@app.route('/api/drone/compliance/report', methods=['GET'])
+def compliance_report():
+    """Regulatory & Compliance Assistant: pre-flight checklist + logged
+    maintenance/mission summary. General guidance, not legal advice."""
+    if dcx is None:
+        return jsonify({'error': 'Extension module unavailable'}), 503
+    fleet = FleetDrone.query.all()
+    maint = MaintenanceLog.query.all()
+    mission_count = DronePlan.query.count()
+    return jsonify(dcx.build_compliance_report(fleet, maint, mission_count))
+
+
+@app.route('/api/drone/collaboration/share', methods=['GET', 'POST'])
+def collaboration_share():
+    """AI Collaboration Mode: create a role-scoped share link for a
+    mission (agronomist, farm_manager, government_agency, researcher,
+    insurance_company). No real authentication — a shareable token, not
+    an access-controlled account."""
+    if dcx is None:
+        return jsonify({'error': 'Extension module unavailable'}), 503
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        try:
+            share = dcx.create_share_token(data.get('mission_name', 'Mission'), data.get('role', ''))
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        row = MissionShare(mission_name=share['mission_name'], role=share['role'],
+                            token=share['token'], visible_sections=json.dumps(share['visible_sections']))
+        db.session.add(row)
+        db.session.commit()
+        return jsonify(row.to_dict()), 201
+    return jsonify({'shares': [s.to_dict() for s in MissionShare.query.order_by(MissionShare.created_at.desc()).all()],
+                     'available_roles': dcx.ROLES})
+
+
+@app.route('/api/drone/collaboration/share/<int:share_id>', methods=['DELETE'])
+def collaboration_share_delete(share_id):
+    row = MissionShare.query.get_or_404(share_id)
+    db.session.delete(row)
+    db.session.commit()
+    return jsonify({'deleted': True})
+
+
+@app.route('/api/drone/scan-mode', methods=['POST'])
+def drone_scan_mode():
+    """AI Automatic Detection Modes: dispatches to a real trained detector
+    when one exists for the mode (disease/pest/weed/ndvi), otherwise runs
+    a transparent image-statistics heuristic (see 'heuristic_estimate' in
+    the response) for modes with no trained model yet."""
+    mode = request.form.get('mode', 'disease')
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image provided'}), 400
+    file = request.files['image']
+    filepath, _ = save_uploaded_file(file)
+    if not filepath:
+        return jsonify({'error': 'Invalid file'}), 400
+
+    if mode == 'disease':
+        result = detector.detect(filepath)
+        result['mode'] = 'disease'
+        return jsonify(result)
+    if mode == 'pest' and get_pest_detector:
+        result = get_pest_detector().detect(filepath)
+        result['mode'] = 'pest'
+        return jsonify(result)
+    if mode == 'weed' and get_weed_detector:
+        result = get_weed_detector().detect(filepath)
+        result['mode'] = 'weed'
+        return jsonify(result)
+    if mode == 'ndvi' and calculate_ndvi:
+        result = calculate_ndvi(filepath)
+        result['mode'] = 'ndvi'
+        return jsonify(result)
+
+    if dcc is None:
+        return jsonify({'error': 'Command center module unavailable'}), 503
+    return jsonify(dcc.heuristic_image_scan(filepath, mode))
+
+
+@app.route('/api/drone/sensor-hub', methods=['GET'])
+def drone_sensor_hub():
+    """Sensor Dashboard: real soil sensor readings + simulated placeholders
+    for the sensors this deployment doesn't have connected yet."""
+    if dcc is None:
+        return jsonify({'error': 'Command center module unavailable'}), 503
+    soil = None
+    if get_soil_hub:
+        try:
+            soil = get_soil_hub().get_latest_readings() if hasattr(get_soil_hub(), 'get_latest_readings') else None
+        except Exception:
+            soil = None
+    hub = dcc.simulate_sensor_hub()
+    hub['soil'] = soil
+    return jsonify(hub)
+
+
+@app.route('/api/drone/mapping', methods=['POST'])
+def drone_mapping():
+    """3D Mapping: real DEM/DSM/orthomosaic generation needs photogrammetry
+    software processing actual overlapping flight photos — this returns a
+    job placeholder describing what that would take (see 'note')."""
+    if dcc is None:
+        return jsonify({'error': 'Command center module unavailable'}), 503
+    data = request.get_json(silent=True) or {}
+    return jsonify(dcc.mapping_job_stub(data.get('field_polygon'), data.get('area_ha')))
+
+
+@app.route('/api/drone/spray/dose', methods=['POST'])
+def drone_spray_dose():
+    """Smart Spraying: real dose/duration calculation from severity, via
+    the existing SprayController."""
+    try:
+        from modules.drone.spray_controller import get_spray_controller
+    except ImportError:
+        return jsonify({'error': 'Spray controller not available'}), 503
+    data = request.get_json(silent=True) or {}
+    severity = data.get('severity', 'Medium')
+    disease_name = data.get('disease_name', 'unknown')
+    controller = get_spray_controller()
+    return jsonify(controller.calculate_dose(severity, disease_name))
+
+
+@app.route('/api/drone/fields/<int:field_id>/boundary', methods=['POST'])
+def set_field_boundary(field_id):
+    """Interactive Farm Map: save a drawn/imported polygon boundary for a field."""
+    field = FarmField.query.get_or_404(field_id)
+    data = request.get_json(silent=True) or {}
+    polygon = data.get('boundary')
+    if not polygon or len(polygon) < 3:
+        return jsonify({'error': 'boundary must have at least 3 [lat,lon] points'}), 400
+    field.boundary_geojson = json.dumps(polygon)
+    db.session.commit()
+    return jsonify(field.to_dict())
+
+
+@app.route('/api/drone/import/kml', methods=['POST'])
+def import_kml():
+    """Interactive Farm Map: import a field boundary from an uploaded KML file."""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No KML file provided'}), 400
+    import xml.etree.ElementTree as ET
+    try:
+        content = request.files['file'].read().decode('utf-8', errors='ignore')
+        ns = {'kml': 'http://www.opengis.net/kml/2.2'}
+        root = ET.fromstring(content)
+        coords_el = root.find('.//kml:coordinates', ns) or root.find('.//coordinates')
+        if coords_el is None:
+            return jsonify({'error': 'No <coordinates> found in KML'}), 400
+        points = []
+        for triple in coords_el.text.strip().split():
+            lon, lat, *_ = triple.split(',')
+            points.append([float(lat), float(lon)])
+        return jsonify({'boundary': points, 'point_count': len(points)})
+    except Exception as e:
+        return jsonify({'error': f'Could not parse KML: {e}'}), 400
+
+
+@app.route('/api/drone/import/geojson', methods=['POST'])
+def import_geojson():
+    """Interactive Farm Map: import a field boundary from uploaded GeoJSON."""
+    data = request.get_json(silent=True) or {}
+    try:
+        geom = data.get('geometry', data)
+        coords = geom['coordinates'][0]  # first ring of a Polygon
+        points = [[c[1], c[0]] for c in coords]  # GeoJSON is [lon,lat] -> flip to [lat,lon]
+        return jsonify({'boundary': points, 'point_count': len(points)})
+    except Exception as e:
+        return jsonify({'error': f'Could not parse GeoJSON: {e}'}), 400
+
+
+@app.route('/api/drone/geofence', methods=['GET', 'POST'])
+def drone_geofence():
+    """Drone Security: manage no-fly zones, or check a point against them."""
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        if 'check_lat' in data:
+            if dcc is None:
+                return jsonify({'error': 'Command center module unavailable'}), 503
+            zones = [z.to_dict() for z in NoFlyZone.query.all()]
+            return jsonify(dcc.check_geofence(data['check_lat'], data['check_lon'], zones))
+        zone = NoFlyZone(name=data.get('name', 'No-Fly Zone'), polygon=json.dumps(data.get('polygon', [])))
+        db.session.add(zone)
+        db.session.commit()
+        return jsonify(zone.to_dict()), 201
+
+    zones = NoFlyZone.query.all()
+    return jsonify({'zones': [z.to_dict() for z in zones]})
+
+
+@app.route('/api/drone/geofence/<int:zone_id>', methods=['DELETE'])
+def drone_geofence_delete(zone_id):
+    zone = NoFlyZone.query.get_or_404(zone_id)
+    db.session.delete(zone)
+    db.session.commit()
+    return jsonify({'deleted': True})
+
+
+@app.route('/api/drone/compliance-report', methods=['GET'])
+def drone_compliance_report():
+    """Regulatory & Compliance Assistant: exportable activity summary +
+    operator checklist (not legal advice — see 'note' in the response)."""
+    if dcc is None:
+        return jsonify({'error': 'Command center module unavailable'}), 503
+    fleet = FleetDrone.query.all()
+    maint = MaintenanceLog.query.all()
+    scans = ScanHistory.query.all()
+    scheds = MissionSchedule.query.all()
+    return jsonify(dcc.build_compliance_report(fleet, maint, scans, scheds))
+
+
+@app.route('/api/drone/collaboration/share', methods=['GET', 'POST'])
+def drone_collaboration_share():
+    """AI Collaboration Mode: create/list read-only share tokens for a
+    field, tagged with a role (agronomist/farm_manager/government/
+    researcher/insurer). No auth on the recipient side is implemented yet
+    — treat tokens as capability links, not access control."""
+    import secrets as _secrets
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        share = MissionShare(
+            token=_secrets.token_urlsafe(24),
+            field_id=data.get('field_id'),
+            role=data.get('role', 'agronomist'),
+        )
+        db.session.add(share)
+        db.session.commit()
+        return jsonify(share.to_dict()), 201
+
+    shares = MissionShare.query.all()
+    return jsonify({'shares': [s.to_dict() for s in shares]})
+
 
 @app.route('/api/health/full', methods=['GET'])
 def full_health():

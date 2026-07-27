@@ -181,6 +181,37 @@ Set `FLASK_ENV=production` in your `.env` — this enables secure cookies and ti
 
 ---
 
+## 8a. Drone Command Center (full feature set)
+
+The Drone tab is now a 17-panel **Command Center**: Health, Mission Planning, AI Scan Modes, AI Copilot (+ voice input), Smart Spraying, 3D Mapping, Sensor Hub, Farm Map (zones + KML/GeoJSON import + no-fly zones/geofencing), Fleet, Emergency, Maintenance, Scheduler, Analytics, Sustainability, Security, Compliance, Collaboration.
+
+**No physical drone is connected in this build.** Anything marked `simulated`/`heuristic_estimate` in a response, or with a "SIM"/"HEURISTIC" badge in the UI, is generated for demo purposes — not a real sensor reading or trained-model output. Real vs. simulated is called out per-feature below and in each API response's `note` field.
+
+| Endpoint | Method | Real or simulated? |
+|---|---|---|
+| `/api/drone/fleet`, `/api/drone/fleet/<id>` | GET/POST/PATCH/DELETE | Real storage; telemetry is simulated unless you wire a `connection_string` through `mavlink_bridge.py` |
+| `/api/drone/telemetry` | GET | **Simulated** — needs a real MAVLink-connected drone to be real |
+| `/api/drone/emergency` | GET/POST | Alerts derived from simulated telemetry; action dispatch is simulated (updates DB status only) |
+| `/api/drone/maintenance`, `/api/drone/schedule` | GET/POST/PATCH/DELETE | **Real** storage/CRUD |
+| `/api/drone/copilot` | POST | **Real** command parsing; **real** waypoints via `MissionPlanner` if you supply a field polygon |
+| `/api/drone/scan-mode` | POST | **Real** for disease/pest/weed/ndvi (your trained models); **heuristic** (real pixel stats, not a trained model) for nutrient/water-stress/soil-moisture/growth-stage/counting/density/harvest-readiness |
+| `/api/drone/spray/dose` | POST | **Real** calculation via `SprayController.calculate_dose` |
+| `/api/drone/mapping` | POST | **Simulated placeholder** — real DEM/orthomosaic needs a photogrammetry pipeline (OpenDroneMap/Pix4D) processing actual overlapping photos |
+| `/api/drone/sensor-hub` | GET | Soil readings real if `get_soil_hub` is configured; everything else (humidity, wind, CO₂, UV, etc.) **simulated** |
+| `/api/drone/fields/<id>/boundary`, `/api/drone/import/kml`, `/api/drone/import/geojson` | POST | **Real** parsing/storage |
+| `/api/drone/geofence` | GET/POST/DELETE | **Real** no-fly zone storage + real point-in-polygon check |
+| `/api/drone/analytics/heatmap`, `/analytics/timeline` | GET | **Real** aggregation from your actual scan history |
+| `/api/drone/sustainability` | GET | Estimated from real stored plans/scans, with stated assumptions (see `basis` field) — not measured savings |
+| `/api/drone/flight-safety` | GET | **Real** calculation from live weather via `weather_intelligence.py` |
+| `/api/drone/compliance-report` | GET | **Real** activity summary from your DB; the checklist is general guidance, not legal advice |
+| `/api/drone/collaboration/share` | GET/POST | **Real** token generation/storage — no access control enforced on the recipient side yet |
+
+**Voice control** uses the browser's built-in Web Speech API (Chrome/Edge) client-side — real, no server round-trip, but browser-dependent and English-only by default.
+
+**Not built** (flagged as research-level in the original spec, or needs hardware/SDK access you don't have yet): autonomous flight, obstacle avoidance, auto-docking/charging, actual spray pump actuation, swarm coordination, drone-to-drone comms, edge AI on-device, AR field view, full multi-language UI (only the framing above is English), per-user login/auth (see the Security tab for what's needed to add this).
+
+---
+
 ## 8b. Live drone connectivity (WiFi + Bluetooth)
 
 The **Drone** tab now has a "Live Drone Connect" panel. This works with **any drone brand** — there's no proprietary SDK lock-in, just a plain HTTP endpoint any drone, companion app, or onboard computer can POST an image to.
