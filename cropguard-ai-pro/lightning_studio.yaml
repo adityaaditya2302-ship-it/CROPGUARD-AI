@@ -1,0 +1,66 @@
+name: cropguard-ai-training
+
+# Lightning AI Studio Configuration
+# Upload this repo to lightning.ai and run training on free GPU
+
+compute:
+  cloud_compute: gpu-rtx-4090    # Free tier: T4, Paid: A100/RTX4090
+
+# Auto-setup script
+on_start:
+  - pip install -r requirements_train.txt
+  - echo "✅ Environment ready"
+
+# Training jobs
+jobs:
+  download_data:
+    cmd: python scripts/download_datasets.py --output datasets/raw
+    desc: Download all 9 crop disease datasets from Kaggle
+
+  prepare_data:
+    cmd: python scripts/prepare_dataset.py --input datasets/raw --output datasets/combined --max_samples 3000
+    desc: Merge, normalize and split all datasets
+
+  train_efficientnet:
+    cmd: >
+      python scripts/train_lightning.py
+      --data    datasets/combined
+      --model   efficientnet
+      --epochs  100
+      --batch   64
+      --lr      1e-4
+      --output  static/models
+    desc: Train EfficientNetV2-S (Phase 0 primary classifier)
+    depends_on: prepare_data
+
+  train_swin:
+    cmd: >
+      python scripts/train_lightning.py
+      --data    datasets/combined
+      --model   swin
+      --epochs  80
+      --batch   32
+      --lr      5e-5
+      --output  static/models
+    desc: Train Swin Transformer-T (Phase 1 texture classifier)
+    depends_on: prepare_data
+
+  train_mobilenet:
+    cmd: >
+      python scripts/train_lightning.py
+      --data    datasets/combined
+      --model   mobilenet
+      --epochs  60
+      --batch   64
+      --lr      1e-4
+      --output  static/models
+    desc: Train MobileNetV3 (lightweight drone deployment)
+    depends_on: prepare_data
+
+  train_all:
+    cmd: |
+      python scripts/train_lightning.py --data datasets/combined --model efficientnet --epochs 100 --batch 64 --output static/models
+      python scripts/train_lightning.py --data datasets/combined --model swin         --epochs  80 --batch 32 --output static/models
+      python scripts/train_lightning.py --data datasets/combined --model mobilenet    --epochs  60 --batch 64 --output static/models
+    desc: Train all three models sequentially
+    depends_on: prepare_data

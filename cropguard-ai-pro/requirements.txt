@@ -1,10 +1,17 @@
-# Core Framework
+# ======================================================================
+# CropGuard AI Pro v4.0 - Requirements
+# Phase 0-5: AI Precision Agriculture Platform
+# ======================================================================
+
+# ── Core Web Framework ─────────────────────────────────────────────────
 flask==3.0.3
 flask-cors==4.0.0
 flask-limiter==3.7.0
+flask-sqlalchemy==3.1.1
 gunicorn==22.0.0
 
-# AI/ML - YOLOv8 & Computer Vision
+# ── Phase 0-1: Ensemble AI ─────────────────────────────────────────────
+# YOLOv8 + EfficientNetV2 + Swin Transformer + Grad-CAM
 ultralytics==8.2.50
 torch==2.3.1
 torchvision==0.18.1
@@ -12,50 +19,75 @@ opencv-python==4.10.0.84
 pillow==10.4.0
 numpy==1.26.4
 
-# Deep Learning Utilities
+# ── Deep Learning Utilities ────────────────────────────────────────────
 tensorboard==2.17.0
 albumentations==1.4.11
+matplotlib==3.9.0
 
-# Data Processing
+# ── Data Processing ────────────────────────────────────────────────────
 pandas==2.2.2
 scikit-learn==1.5.1
 scipy==1.14.0
 
-# Image Processing & EXIF
+# ── Image Processing ───────────────────────────────────────────────────
 piexif==1.1.3
 exif==1.6.0
 
-# Geospatial (for drone GPS)
+# ── Phase 2: AI Farm Assistant (LLM) ──────────────────────────────────
+google-generativeai>=0.7.0      # Gemini Pro API (primary)
+openai>=1.30.0                  # GPT-4o fallback
+
+# ── Phase 2: Weather Intelligence ─────────────────────────────────────
+# Open-Meteo uses built-in urllib - no extra package needed!
+# Optional extra weather features:
+# pyowm==3.3.0
+
+# ── Phase 3: IoT Sensors (MQTT) ────────────────────────────────────────
+paho-mqtt==2.0.0
+
+# ── Phase 3: Drone MAVLink ─────────────────────────────────────────────
+# NOTE: mavsdk requires OS-level support. Install separately:
+# pip install mavsdk              (Linux/macOS preferred)
+# pip install pymavlink           (lower-level alternative)
+
+# ── Geospatial (GPS + Field Mapping) ──────────────────────────────────
 geopy==2.4.1
 shapely==2.0.4
 folium==0.17.0
 
-# Weather API
+# ── Phase 4: NDVI / Satellite (Optional) ──────────────────────────────
+# sentinelhub>=3.10.0             # Sentinel-2 satellite API
+# rasterio==1.3.10                # GeoTIFF multispectral support
+
+# ── Database ───────────────────────────────────────────────────────────
+sqlalchemy==2.0.31
+# psycopg2-binary==2.9.9          # Uncomment for PostgreSQL production
+
+# ── HTTP & Environment ─────────────────────────────────────────────────
 requests==2.32.3
 python-dotenv==1.0.1
 
-# Database
-sqlalchemy==2.0.31
-flask-sqlalchemy==3.1.1
-
-# Utilities
-python-dateutil==2.9.0
-pytz==2024.1
+# ── Task Queue (async inference) ───────────────────────────────────────
 celery==5.4.0
 redis==5.0.7
 
-# Production
+# ── Utilities ──────────────────────────────────────────────────────────
+python-dateutil==2.9.0
+pytz==2024.1
+
+# ── Production ─────────────────────────────────────────────────────────
 whitenoise==6.7.0
 pillow-heif
-
-# Drone Connectivity
 qrcode[pil]==7.4.2
 
-# Optional: only needed if you run bluetooth_bridge.py for classic
-# Bluetooth (RFCOMM/SPP) drone connections. Requires OS Bluetooth support
-# (Linux/BlueZ or Windows). Not needed for WiFi or Web-Bluetooth (browser).
-# pybluez2==0.46
+# ── Optional: Phase 5 Database upgrades ──────────────────────────────
+# pymongo==4.8.0                  # MongoDB for time-series sensor data
+# influxdb-client==1.44.0         # InfluxDB for IoT sensor time-series
 
-# Optional: only needed to decode professional RAW drone camera formats
-# (.dng, .cr2, .nef, .arw). Everything else works without it.
-# rawpy==0.21.0
+# ── Optional: Camera / Drone RAW ─────────────────────────────────────
+# rawpy==0.21.0                   # Decode .dng/.cr2/.nef drone RAW files
+# pybluez2==0.46                  # Classic Bluetooth drone pairing
+
+# ── Optional: Phase 2 FastAPI parallel server ─────────────────────────
+# fastapi==0.111.0
+# uvicorn[standard]==0.30.1

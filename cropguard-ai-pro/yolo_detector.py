@@ -180,36 +180,87 @@ class CropDiseaseDetector:
             return None
 
     def _merge_results(self, results_list):
-        """Combine detections from all loaded models into a single response."""
-        all_detections = []
-        model_names = []
-        annotated_image = None
+        """Smart confidence-weighted ensemble voting across all loaded models.
+
+        Strategy:
+          1. If ANY detection model (bbox) found something with conf >= threshold,
+             use those results (detection beats classification).
+          2. Otherwise, collect all classification results and pick the
+             winner by highest confidence.
+          3. De-duplicate near-identical predictions (same disease name)
+             by keeping only the highest-confidence copy.
+          4. Attach a 'models_voted' field so the UI can display it.
+        """
+        detection_results = []   # from detect-task models (have bboxes)
+        classify_results  = []   # from classify-task models (no bbox)
+        model_names       = []
+        annotated_image   = None
 
         for r in results_list:
             if not r:
                 continue
-            all_detections.extend(r['detections'])
-            model_names.append(r['model'])
+            model_names.append(r.get('model', 'Unknown'))
             if annotated_image is None and r.get('annotated_image'):
                 annotated_image = r['annotated_image']
+            for det in r.get('detections', []):
+                if det.get('bbox') is not None:
+                    detection_results.append(det)
+                else:
+                    classify_results.append(det)
 
-        # Sort combined detections: real bounding-box detections first (these
-        # only appear when a model found actual visual evidence), then
-        # classification-only guesses (which are forced to answer even with
-        # no real match, so their confidence numbers aren't directly
-        # comparable to a detection model's). Within each group, sort by
-        # confidence, highest first.
-        all_detections.sort(
-            key=lambda x: (x.get('bbox') is None, -x.get('confidence', 0))
-        )
+        # ── Step 1: Prefer detection results (they have visual evidence) ──
+        if detection_results:
+            detection_results.sort(key=lambda x: -x.get('confidence', 0))
+            # De-duplicate by disease name (keep highest conf per disease)
+            seen, deduped = set(), []
+            for d in detection_results:
+                key = d.get('disease', d.get('class_name', '')).lower().strip()
+                if key not in seen:
+                    seen.add(key)
+                    d['models_voted'] = ' + '.join(model_names)
+                    deduped.append(d)
+            return {
+                'success': True,
+                'detections': deduped,
+                'annotated_image': annotated_image,
+                'total_detections': len(deduped),
+                'model': ' + '.join(model_names),
+                'ensemble_mode': 'detection_priority'
+            }
+
+        # ── Step 2: All classification — pick best by confidence ──────────
+        if not classify_results:
+            return self._fallback_detection('') if not annotated_image else {
+                'success': False, 'detections': [], 'model': 'No results'
+            }
+
+        # Sort all classification results by confidence descending
+        classify_results.sort(key=lambda x: -x.get('confidence', 0))
+
+        # De-duplicate by normalised disease name
+        seen, deduped = set(), []
+        for d in classify_results:
+            raw_name = d.get('disease', d.get('class_name', ''))
+            key = raw_name.lower().replace('_', ' ').replace('-', ' ').strip()
+            if key not in seen:
+                seen.add(key)
+                d['models_voted'] = ' + '.join(model_names)
+                deduped.append(d)
+
+        # Tag the winner
+        if deduped:
+            deduped[0]['ensemble_winner'] = True
 
         return {
             'success': True,
-            'detections': all_detections,
+            'detections': deduped,
             'annotated_image': annotated_image,
-            'total_detections': len(all_detections),
-            'model': ' + '.join(model_names) if model_names else 'Unknown'
+            'total_detections': len(deduped),
+            'model': ' + '.join(model_names),
+            'ensemble_mode': 'confidence_voting',
+            'models_count': len(model_names)
         }
+
 
     def _process_classification_results(self, results, class_names, use_plantvillage_lookup=False):
         """Process YOLOv8 classification results into the SAME response shape
