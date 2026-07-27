@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CropGuard AI - Drone Connection</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/drone_connection.css') }}">
+</head>
+<body>
+  <div class="dh-shell">
+    <header class="dh-header">
+      <h1>🚁 Drone Connection</h1>
+      <div class="dh-status" id="connStatus">
+        <span class="dot dot-red" id="connDot"></span>
+        <span id="connText">Disconnected</span>
+      </div>
+    </header>
+
+    <div class="dh-grid">
+      <!-- Left: detection + fleet -->
+      <section class="dh-panel">
+        <h2>Drone Detection</h2>
+        <button class="dh-btn" id="scanBtn">Scan for Drones</button>
+        <div id="deviceList" class="dh-device-list"></div>
+      </section>
+
+      <!-- Center: map + mission planner -->
+      <section class="dh-panel dh-panel-wide">
+        <h2>Mission Planner</h2>
+        <div id="map" class="dh-map"></div>
+        <div class="dh-row">
+          <button class="dh-btn" id="clearBoundaryBtn">Clear Boundary</button>
+          <button class="dh-btn dh-btn-accent" id="generateMissionBtn">Generate AI Mission</button>
+        </div>
+        <div id="missionSummary" class="dh-mission-summary"></div>
+      </section>
+
+      <!-- Right: telemetry -->
+      <section class="dh-panel">
+        <h2>Live Telemetry</h2>
+        <div class="dh-telemetry" id="telemetryBox">
+          <div class="dh-telem-row"><span>Battery</span><b id="t_battery">--</b></div>
+          <div class="dh-telem-row"><span>GPS Sats</span><b id="t_sats">--</b></div>
+          <div class="dh-telem-row"><span>Altitude</span><b id="t_alt">--</b></div>
+          <div class="dh-telem-row"><span>Speed</span><b id="t_speed">--</b></div>
+          <div class="dh-telem-row"><span>Signal</span><b id="t_signal">--</b></div>
+          <div class="dh-telem-row"><span>Flight Mode</span><b id="t_mode">--</b></div>
+          <div class="dh-telem-row"><span>Tank</span><b id="t_tank">--</b></div>
+          <div class="dh-telem-row"><span>Flow Rate</span><b id="t_flow">--</b></div>
+        </div>
+
+        <h2>Health</h2>
+        <div id="healthBox" class="dh-health">No data</div>
+
+        <h2>Weather Gate</h2>
+        <div id="weatherBox" class="dh-weather">Checking...</div>
+      </section>
+    </div>
+
+    <div class="dh-panel dh-controls">
+      <h2>Mission Control</h2>
+      <div class="dh-row">
+        <button class="dh-btn" id="uploadBtn">Upload Mission</button>
+        <button class="dh-btn dh-btn-green" id="startBtn">Start</button>
+        <button class="dh-btn" id="pauseBtn">Pause</button>
+        <button class="dh-btn" id="resumeBtn">Resume</button>
+        <button class="dh-btn dh-btn-red" id="abortBtn">Abort</button>
+        <button class="dh-btn" id="rthBtn">Return Home</button>
+        <button class="dh-btn dh-btn-accent" id="completeBtn">Complete + Report</button>
+      </div>
+      <div id="reportBox" class="dh-report"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  <script src="{{ url_for('static', filename='js/drone_connection.js') }}"></script>
+</body>
+</html>

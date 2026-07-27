@@ -1,0 +1,92 @@
+:root {
+  --bg: #0d1117;
+  --panel: #151b23;
+  --border: #2a3341;
+  --text: #e6edf3;
+  --muted: #8b98a5;
+  --accent: #22c55e;
+  --accent2: #3b82f6;
+  --red: #ef4444;
+  --yellow: #f59e0b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.dh-shell { padding: 20px; max-width: 1400px; margin: 0 auto; }
+
+.dh-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.dh-header h1 { margin: 0; font-size: 22px; }
+
+.dh-status { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.dot-green { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.dot-yellow { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+.dot-red { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+.dh-grid {
+  display: grid;
+  grid-template-columns: 260px 1fr 300px;
+  gap: 16px;
+}
+@media (max-width: 1000px) {
+  .dh-grid { grid-template-columns: 1fr; }
+}
+
+.dh-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+.dh-panel h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 12px; }
+
+.dh-map { height: 420px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+
+.dh-btn {
+  background: #1f2733;
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  margin: 4px 6px 4px 0;
+}
+.dh-btn:hover { background: #2a3341; }
+.dh-btn-accent { background: var(--accent2); border-color: var(--accent2); }
+.dh-btn-green { background: var(--accent); border-color: var(--accent); color: #06210f; }
+.dh-btn-red { background: var(--red); border-color: var(--red); }
+
+.dh-row { display: flex; flex-wrap: wrap; margin-top: 10px; }
+
+.dh-device-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.dh-device-card {
+  background: #101720;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 13px;
+}
+.dh-device-card b { display: block; margin-bottom: 4px; }
+.dh-device-card button { margin-top: 6px; }
+
+.dh-telemetry, .dh-health, .dh-weather { font-size: 13px; }
+.dh-telem-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.dh-telem-row span { color: var(--muted); }
+
+.dh-mission-summary { margin-top: 10px; font-size: 13px; color: var(--muted); white-space: pre-wrap; }
+
+.dh-controls { margin-top: 16px; }
+.dh-report { margin-top: 10px; font-size: 13px; color: var(--muted); white-space: pre-wrap; }

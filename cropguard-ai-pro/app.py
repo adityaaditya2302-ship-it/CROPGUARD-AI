@@ -2173,7 +2173,9 @@ def full_health():
 
 
 # ===================== MAIN =====================
-
+from drone_extension.routes_drone import drone_bp
+from drone_extension.models_drone_ext import DroneHubMission, DroneHubTelemetryLog, DroneHubReport
+app.register_blueprint(drone_bp)
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=app.config.get('DEBUG', False))

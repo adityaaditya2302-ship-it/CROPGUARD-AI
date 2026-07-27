@@ -1,0 +1,9 @@
+# Add these to your existing requirements.txt (or install separately).
+# Nothing here replaces or version-pins against your existing packages.
+
+# Phase 3 - PDF mission reports (optional; CSV/JSON work without it)
+reportlab>=4.0
+
+# Phase 4 - real MAVLink hardware connection (optional; only needed
+# once you actually have a flight controller / SITL to connect to)
+pymavlink>=2.4.40
