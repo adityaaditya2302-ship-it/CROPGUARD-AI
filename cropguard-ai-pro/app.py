@@ -31,6 +31,12 @@ from yolo_detector import get_detector
 from image_utils import normalize_image_bytes, normalize_uploaded_file, ImageDecodeError
 from discovery import start_discovery_beacon, DiscoveryBeacon
 
+# ── Drone Hub Extension: must be imported before db.create_all() runs
+# (below) so its new tables (dronehub_missions, dronehub_telemetry_log,
+# dronehub_reports) actually get created. ────────────────────────────────
+from drone_extension.routes_drone import drone_bp
+from drone_extension.models_drone_ext import DroneHubMission, DroneHubTelemetryLog, DroneHubReport
+
 # ── Phase 0-1: AI Ensemble Pipeline ─────────────────────────────────────────
 try:
     from ai_pipeline.ensemble import get_pipeline
@@ -127,6 +133,7 @@ def create_app(config_name='development'):
     # Initialize extensions
     CORS(app)
     db.init_app(app)
+    app.register_blueprint(drone_bp)
 
     # Make sure required folders exist (fresh clones won't have empty dirs
     # from git, and uploads/model loading will fail without them)
@@ -2173,9 +2180,6 @@ def full_health():
 
 
 # ===================== MAIN =====================
-from drone_extension.routes_drone import drone_bp
-from drone_extension.models_drone_ext import DroneHubMission, DroneHubTelemetryLog, DroneHubReport
-app.register_blueprint(drone_bp)
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=app.config.get('DEBUG', False))

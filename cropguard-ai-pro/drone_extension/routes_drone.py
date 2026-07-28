@@ -351,3 +351,133 @@ def _estimate_area_ha(polygon):
         area += x1 * y2 - x2 * y1
     area = abs(area) / 2.0
     return area / 10000.0  # m^2 -> hectares
+
+
+# =====================================================================
+# REAL DRONE DRIVERS (MAVLink today; DJI/ROS/custom are stubs)
+#
+# Kept entirely separate from the simulated routes above - nothing
+# here changes if you never touch it. Only use these once you've
+# tested against SITL (see drivers/mavlink_driver.py docstring).
+# =====================================================================
+from .drivers import driver_manager
+from .drivers.base import DroneDriverError
+
+
+@drone_bp.route('/real/discover', methods=['GET'])
+def real_discover():
+    """Scans for real MAVLink devices on common serial/UDP ports.
+    DJI/ROS/custom hardware can't be generically scanned - see those
+    drivers' docstrings for their own pairing flow."""
+    try:
+        found = driver_manager.discover_mavlink()
+    except DroneDriverError as e:
+        return jsonify({'error': str(e)}), 503
+    return jsonify({'mavlink_devices': found})
+
+
+@drone_bp.route('/real/connect', methods=['POST'])
+def real_connect():
+    """POST body: { device_id, driver_type: 'mavlink'|'dji'|'ros'|'custom',
+    connection_string, ...driver-specific kwargs (baud, spray_channel) }"""
+    data = request.get_json(silent=True) or {}
+    device_id = data.get('device_id')
+    driver_type = data.get('driver_type', 'mavlink')
+    connection_string = data.get('connection_string')
+    if not device_id or not connection_string:
+        return jsonify({'error': 'device_id and connection_string are required'}), 400
+
+    kwargs = {k: v for k, v in data.items()
+              if k not in ('device_id', 'driver_type', 'connection_string')}
+    try:
+        result = driver_manager.connect_device(device_id, driver_type, connection_string, **kwargs)
+    except DroneDriverError as e:
+        return jsonify({'error': str(e)}), 502
+    return jsonify(result)
+
+
+@drone_bp.route('/real/disconnect/<device_id>', methods=['POST'])
+def real_disconnect(device_id):
+    driver_manager.disconnect_device(device_id)
+    return jsonify({'connected': False, 'device_id': device_id})
+
+
+def _real_action(device_id, fn_name, *args, **kwargs):
+    try:
+        driver = driver_manager.get_active_driver(device_id)
+        result = getattr(driver, fn_name)(*args, **kwargs)
+        return jsonify(result)
+    except DroneDriverError as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@drone_bp.route('/real/<device_id>/arm', methods=['POST'])
+def real_arm(device_id): return _real_action(device_id, 'arm')
+
+
+@drone_bp.route('/real/<device_id>/disarm', methods=['POST'])
+def real_disarm(device_id): return _real_action(device_id, 'disarm')
+
+
+@drone_bp.route('/real/<device_id>/takeoff', methods=['POST'])
+def real_takeoff(device_id):
+    altitude_m = (request.get_json(silent=True) or {}).get('altitude_m', 10)
+    return _real_action(device_id, 'takeoff', altitude_m)
+
+
+@drone_bp.route('/real/<device_id>/land', methods=['POST'])
+def real_land(device_id): return _real_action(device_id, 'land')
+
+
+@drone_bp.route('/real/<device_id>/rth', methods=['POST'])
+def real_rth(device_id): return _real_action(device_id, 'return_to_home')
+
+
+@drone_bp.route('/real/<device_id>/mission/upload', methods=['POST'])
+def real_mission_upload(device_id):
+    waypoints = (request.get_json(silent=True) or {}).get('waypoints', [])
+    if len(waypoints) < 1:
+        return jsonify({'error': 'waypoints required'}), 400
+    return _real_action(device_id, 'upload_mission', waypoints)
+
+
+@drone_bp.route('/real/<device_id>/mission/start', methods=['POST'])
+def real_mission_start(device_id): return _real_action(device_id, 'start_mission')
+
+
+@drone_bp.route('/real/<device_id>/mission/pause', methods=['POST'])
+def real_mission_pause(device_id): return _real_action(device_id, 'pause_mission')
+
+
+@drone_bp.route('/real/<device_id>/mission/resume', methods=['POST'])
+def real_mission_resume(device_id): return _real_action(device_id, 'resume_mission')
+
+
+@drone_bp.route('/real/<device_id>/mission/stop', methods=['POST'])
+def real_mission_stop(device_id): return _real_action(device_id, 'stop_mission')
+
+
+@drone_bp.route('/real/<device_id>/spray/start', methods=['POST'])
+def real_spray_start(device_id):
+    rate = (request.get_json(silent=True) or {}).get('rate_lpm')
+    return _real_action(device_id, 'spray_start', rate)
+
+
+@drone_bp.route('/real/<device_id>/spray/stop', methods=['POST'])
+def real_spray_stop(device_id): return _real_action(device_id, 'spray_stop')
+
+
+@drone_bp.route('/real/<device_id>/telemetry', methods=['GET'])
+def real_telemetry(device_id): return _real_action(device_id, 'telemetry')
+
+
+@drone_bp.route('/real/<device_id>/health', methods=['GET'])
+def real_health(device_id): return _real_action(device_id, 'health')
+
+
+@drone_bp.route('/real/<device_id>/emergency', methods=['POST'])
+def real_emergency(device_id):
+    action = (request.get_json(silent=True) or {}).get('action')
+    if not action:
+        return jsonify({'error': 'action required'}), 400
+    return _real_action(device_id, 'emergency', action)

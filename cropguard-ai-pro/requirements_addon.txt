@@ -7,3 +7,6 @@ reportlab>=4.0
 # Phase 4 - real MAVLink hardware connection (optional; only needed
 # once you actually have a flight controller / SITL to connect to)
 pymavlink>=2.4.40
+
+# Real drone drivers - custom/bespoke serial hardware (optional)
+pyserial>=3.5

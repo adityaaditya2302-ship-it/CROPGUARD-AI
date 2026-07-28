@@ -597,6 +597,9 @@ body{
   <button class="nav-tab" onclick="switchTab('drone',this)" id="tab-drone">
     <i class="fa fa-helicopter tab-icon"></i> Drone Mission
   </button>
+  <button class="nav-tab" onclick="switchTab('droneconnection',this)" id="tab-drone-connection" title="Live drone connection dashboard">
+    <i class="fa fa-satellite-dish tab-icon"></i> Drone Connection
+  </button>
   <button class="nav-tab" onclick="switchTab('sensors',this)" id="tab-sensors">
     <i class="fa fa-microchip tab-icon"></i> Soil Sensors
   </button>
@@ -1197,6 +1200,13 @@ body{
 
 </div>
 
+<!-- ──────────────── DRONE CONNECTION (embedded dashboard) ──────────────── -->
+<div class="tab-panel" id="panel-droneconnection">
+  <iframe id="drone-connection-frame" src="about:blank"
+          style="width:100%;height:85vh;border:0;border-radius:16px;background:#0f172a;"
+          title="Drone Connection Dashboard"></iframe>
+</div>
+
 <!-- ──────────────── SOIL SENSORS ──────────────── -->
 <div class="tab-panel" id="panel-sensors">
   <div class="card">
@@ -1459,6 +1469,10 @@ function switchTab(id, el) {
   if(id === 'sensors') loadSensors();
   if(id === 'market')  loadSchemes();
   if(id === 'drone')   { loadTelemetry(); if(!dccTelemetryTimer) dccTelemetryTimer = setInterval(loadTelemetry, 5000); }
+  if(id === 'droneconnection') {
+    const frame = document.getElementById('drone-connection-frame');
+    if(frame.getAttribute('src') === 'about:blank') frame.src = '/api/dronehub/dashboard';
+  }
 }
 
 /* ═══════════════════════════════════════════════
